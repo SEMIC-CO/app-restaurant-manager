@@ -8,6 +8,7 @@ import {
   LogOut 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui';
 
 const mainLinks = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -88,13 +89,14 @@ export function ProfileSidebar({ onLogout }: ProfileSidebarProps) {
 
       {/* Logout */}
       <div className="border-t p-4">
-        <button
+        <Button
+          variant="ghost"
           onClick={onLogout}
-          className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-card hover:text-foreground transition-colors"
+          className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground"
         >
           <LogOut className="h-5 w-5" />
           Cerrar Sesión
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -104,9 +104,13 @@ export function ProfilePage() {
             </Button>
 
             {/* User avatar */}
-            <button className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+            >
               <span className="text-sm">👤</span>
-            </button>
+            </Button>
           </div>
         </>
       }

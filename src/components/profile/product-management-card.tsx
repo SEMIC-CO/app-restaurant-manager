@@ -1,5 +1,5 @@
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Card, Button } from '@/components/ui';
+import { Card, Button, Switch } from '@/components/ui';
 
 interface Product {
   id: string;
@@ -97,33 +97,29 @@ export function ProductManagementCard({
                   </div>
                 </td>
                 <td className="px-6 py-4 text-center">
-                  <button
-                    onClick={() => onToggleAvailability?.(product.id, !product.isAvailable)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      product.isAvailable ? 'bg-primary' : 'bg-muted'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        product.isAvailable ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
+                  <Switch
+                    checked={product.isAvailable}
+                    onCheckedChange={(checked: boolean) => onToggleAvailability?.(product.id, checked)}
+                  />
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center justify-center gap-2">
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => onEditProduct?.(product.id)}
-                      className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      className="h-8 w-8"
                     >
                       <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => onDeleteProduct?.(product.id)}
-                      className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-destructive"
+                      className="h-8 w-8 hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
-                    </button>
+                    </Button>
                   </div>
                 </td>
               </tr>
@@ -138,33 +134,33 @@ export function ProductManagementCard({
           Mostrando {products.length} de {totalProducts} productos
         </p>
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => onPageChange?.(currentPage - 1)}
             disabled={currentPage <= 1}
-            className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-50"
           >
             <ChevronLeft className="h-5 w-5" />
-          </button>
+          </Button>
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <button
+            <Button
               key={page}
+              variant={page === currentPage ? 'default' : 'ghost'}
+              size="icon"
               onClick={() => onPageChange?.(page)}
-              className={`h-8 w-8 rounded text-sm font-medium ${
-                page === currentPage
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted'
-              }`}
+              className="h-8 w-8"
             >
               {page}
-            </button>
+            </Button>
           ))}
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => onPageChange?.(currentPage + 1)}
             disabled={currentPage >= totalPages}
-            className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-50"
           >
             <ChevronRight className="h-5 w-5" />
-          </button>
+          </Button>
         </div>
       </div>
     </Card>

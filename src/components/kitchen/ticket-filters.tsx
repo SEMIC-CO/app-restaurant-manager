@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui';
 import type { OrderType } from '@/types';
 
 interface TicketFilter {
@@ -20,14 +21,13 @@ export function TicketFilters({ filters, activeFilter, onFilterChange }: TicketF
   return (
     <div className="flex gap-2">
       {filters.map((filter) => (
-        <button
+        <Button
           key={filter.type}
+          variant={activeFilter === filter.type ? 'default' : 'outline'}
           onClick={() => onFilterChange(filter.type)}
           className={cn(
-            'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors',
-            activeFilter === filter.type
-              ? 'bg-foreground text-background'
-              : 'bg-card border hover:bg-accent'
+            'gap-2 rounded-full',
+            activeFilter === filter.type && 'bg-foreground text-background hover:bg-foreground/90'
           )}
         >
           {filter.label}
@@ -41,7 +41,7 @@ export function TicketFilters({ filters, activeFilter, onFilterChange }: TicketF
               {filter.count}
             </span>
           )}
-        </button>
+        </Button>
       ))}
     </div>
   );

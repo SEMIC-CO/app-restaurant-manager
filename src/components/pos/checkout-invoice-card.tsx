@@ -54,12 +54,13 @@ export function CheckoutInvoiceCard({
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onBack}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-5 w-5" />
-          </button>
+          </Button>
           <h1 className="text-xl font-bold">Detalle de Facturación</h1>
         </div>
         <p className="text-sm text-muted-foreground">

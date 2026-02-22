@@ -118,19 +118,18 @@ export function OrderTicket({
         {/* Payment method selection */}
         <div className="flex gap-2 border-t px-4 py-3">
           {paymentMethods.map(({ method, label, icon }) => (
-            <button
+            <Button
               key={method}
+              variant={paymentMethod === method ? 'default' : 'outline'}
               onClick={() => setPaymentMethod(method)}
               className={cn(
-                'flex flex-1 flex-col items-center gap-1 rounded-lg border p-3 text-xs font-medium transition-colors',
-                paymentMethod === method
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'hover:bg-accent'
+                'flex-1 flex-col h-auto gap-1 py-3',
+                paymentMethod === method && 'border-primary bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary'
               )}
             >
               {icon}
-              {label}
-            </button>
+              <span className="text-xs">{label}</span>
+            </Button>
           ))}
         </div>
 

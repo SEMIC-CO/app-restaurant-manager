@@ -156,9 +156,9 @@ export function DeliveryPage() {
               count={readyOrders.length}
               indicatorColor="primary"
               action={
-                <button className="text-sm text-primary hover:underline">
+                <Button variant="link" className="text-sm">
                   Ver todos
-                </button>
+                </Button>
               }
             >
               {readyOrders.map((order) => (
@@ -177,9 +177,9 @@ export function DeliveryPage() {
               count={pendingInvoice.length}
               indicatorColor="secondary"
               action={
-                <button className="text-sm text-muted-foreground hover:underline">
+                <Button variant="link" className="text-sm text-muted-foreground">
                   Ver historial
-                </button>
+                </Button>
               }
             >
               {pendingInvoice.map((order) => (

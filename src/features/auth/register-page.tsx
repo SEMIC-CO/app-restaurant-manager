@@ -142,13 +142,17 @@ export function RegisterPage() {
                 className="pl-10 pr-10"
                 {...register('password')}
               />
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                className="absolute right-0 top-0 h-full w-10 hover:bg-transparent"
               >
-                {showPassword ? '👁️' : '👁️‍🗨️'}
-              </button>
+                <span className="text-neutral-400 hover:text-neutral-600">
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                </span>
+              </Button>
             </div>
             {errors.password && (
               <p className="text-xs text-red-500">{errors.password.message}</p>
@@ -169,13 +173,17 @@ export function RegisterPage() {
                 className="pl-10 pr-10"
                 {...register('confirmPassword')}
               />
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                className="absolute right-0 top-0 h-full w-10 hover:bg-transparent"
               >
-                {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
-              </button>
+                <span className="text-neutral-400 hover:text-neutral-600">
+                  {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+                </span>
+              </Button>
             </div>
             {errors.confirmPassword && (
               <p className="text-xs text-red-500">{errors.confirmPassword.message}</p>

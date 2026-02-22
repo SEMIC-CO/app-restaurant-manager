@@ -19,6 +19,8 @@ export { Select, SelectTrigger, SelectContent, SelectItem, SelectValue, SelectGr
 
 export { Textarea } from "./textarea";
 
+export { Switch } from "./switch";
+
 export { Skeleton } from "./skeleton";
 
 export { ScrollArea } from "./scroll-area";
