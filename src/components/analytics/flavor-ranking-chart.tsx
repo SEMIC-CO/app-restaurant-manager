@@ -1,4 +1,4 @@
-import { Card } from '@/components/ui';
+import { Card, Button } from '@/components/ui';
 
 interface FlavorRanking {
   name: string;
@@ -22,12 +22,13 @@ export function FlavorRankingChart({ flavors, onViewDetails }: FlavorRankingChar
           <h3 className="font-semibold">Ranking de Sabores</h3>
           <p className="text-sm text-muted-foreground">Volumen de ventas por variedad</p>
         </div>
-        <button 
+        <Button 
+          variant="link"
           onClick={onViewDetails}
-          className="text-sm text-primary hover:underline"
+          className="text-sm"
         >
           Ver detalles
-        </button>
+        </Button>
       </div>
 
       <div className="mt-6 space-y-4">

@@ -5,3 +5,5 @@ export { SearchInput } from './search-input';
 export { Navbar } from './navbar';
 export { StatusBadge } from './status-badge';
 export { UserMenu } from './user-menu';
+export { ProductFormDialog } from './product-form-dialog';
+export { CustomerFormDialog } from './customer-form-dialog';

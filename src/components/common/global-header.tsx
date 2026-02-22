@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Bell, Search, User, LogOut } from 'lucide-react';
+import { Input, Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
 const navLinks = [
@@ -76,27 +77,29 @@ export function GlobalHeader() {
       <div className="flex items-center gap-4">
         {/* Search input */}
         <div className="relative hidden lg:block">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <Input
             type="search"
             placeholder="Buscar reporte..."
-            className="h-9 w-48 rounded-md border border-input bg-background pl-10 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="h-9 w-48 pl-10 pr-3"
           />
         </div>
 
         {/* Notifications bell */}
-        <button className="relative rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground">
+        <Button variant="ghost" size="icon" className="rounded-full">
           <Bell className="h-5 w-5" />
-        </button>
+        </Button>
 
         {/* User avatar with dropdown */}
         <div className="relative" ref={menuRef}>
-          <button 
+          <Button 
+            variant="ghost"
+            size="icon"
             onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
           >
             <span className="text-sm font-medium">👤</span>
-          </button>
+          </Button>
 
           {/* Dropdown menu */}
           {isUserMenuOpen && (

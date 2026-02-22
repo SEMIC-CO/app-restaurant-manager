@@ -1,5 +1,5 @@
 import { User, Mail, Phone, MapPin } from 'lucide-react';
-import { Card } from '@/components/ui';
+import { Card, Button } from '@/components/ui';
 
 interface CustomerInfo {
   name: string;
@@ -26,12 +26,13 @@ export function CustomerInfoCard({ customer, onEdit }: CustomerInfoCardProps) {
           <h3 className="font-semibold">Información del Cliente</h3>
         </div>
         {onEdit && (
-          <button 
+          <Button 
+            variant="link"
             onClick={onEdit}
-            className="text-sm text-primary hover:underline"
+            className="text-sm"
           >
             Editar datos
-          </button>
+          </Button>
         )}
       </div>
 

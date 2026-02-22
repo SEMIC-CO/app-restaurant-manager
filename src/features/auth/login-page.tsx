@@ -1,58 +1,65 @@
-import { useState } from 'react';
+import * as React from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
-import { Card } from '@/components/ui';
-import { Button } from '@/components/ui';
-import { Input } from '@/components/ui';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Button, Input, Label, Checkbox } from '@/components/ui';
 import { AuthLayout } from '@/app/layout';
+
+const loginSchema = z.object({
+  email: z.string().email('Correo electrónico inválido'),
+  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+  rememberMe: z.boolean(),
+});
+
+type LoginFormData = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    rememberMe: false,
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    watch,
+    setValue,
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+      rememberMe: false,
+    },
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
+  const [showPassword, setShowPassword] = React.useState(false);
+  const rememberMe = watch('rememberMe');
+
+  const onSubmit = async (data: LoginFormData) => {
     // TODO: Implement login logic
+    console.log('Login data:', data);
     setTimeout(() => {
-      setIsLoading(false);
       navigate('/');
     }, 1000);
   };
 
   return (
     <AuthLayout>
-      <Card className="p-8 shadow-lg">
-        {/* Icon */}
-        <div className="flex justify-center mb-6">
-          <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
-            <span className="text-3xl">🍴</span>
+      <Card className="shadow-lg">
+        <CardHeader className="text-center space-y-4">
+          <div className="flex justify-center">
+            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
+              <span className="text-3xl">🍴</span>
+            </div>
           </div>
-        </div>
-
-        {/* Title */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-neutral-900 mb-2">
-            Bienvenido de nuevo
-          </h1>
-          <p className="text-sm text-neutral-600">
-            Ingresa a tu cuenta de Empanada Manager
-          </p>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-5">
+          <CardTitle className="text-2xl">Bienvenido de nuevo</CardTitle>
+          <CardDescription>Ingresa a tu cuenta de Empanada Manager</CardDescription>
+        </CardHeader>
+        
+        <form onSubmit={handleSubmit(onSubmit)}>
+        <CardContent className="space-y-5">
           {/* Email Input */}
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium text-neutral-900">
-              Correo electrónico
-            </label>
+            <Label htmlFor="email">Correo electrónico</Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
                 📧
@@ -61,19 +68,18 @@ export function LoginPage() {
                 id="email"
                 type="email"
                 placeholder="ejemplo@empresa.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="pl-10"
-                required
+                {...register('email')}
               />
             </div>
+            {errors.email && (
+              <p className="text-xs text-red-500">{errors.email.message}</p>
+            )}
           </div>
 
           {/* Password Input */}
           <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium text-neutral-900">
-              Contraseña
-            </label>
+            <Label htmlFor="password">Contraseña</Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
                 🔒
@@ -82,10 +88,8 @@ export function LoginPage() {
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="pl-10 pr-10"
-                required
+                {...register('password')}
               />
               <button
                 type="button"
@@ -95,19 +99,23 @@ export function LoginPage() {
                 {showPassword ? '👁️' : '👁️‍🗨️'}
               </button>
             </div>
+            {errors.password && (
+              <p className="text-xs text-red-500">{errors.password.message}</p>
+            )}
           </div>
 
           {/* Remember Me & Forgot Password */}
           <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.rememberMe}
-                onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
-                className="w-4 h-4 rounded border-neutral-300 text-orange-500 focus:ring-orange-500"
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="remember"
+                checked={rememberMe}
+                onCheckedChange={(checked: boolean) => setValue('rememberMe', checked)}
               />
-              <span className="text-sm text-neutral-700">Recordarme</span>
-            </label>
+              <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">
+                Recordarme
+              </Label>
+            </div>
             <Link
               to="/recuperar-contrasena"
               className="text-sm text-orange-500 hover:text-orange-600 font-medium"
@@ -120,22 +128,24 @@ export function LoginPage() {
           <Button
             type="submit"
             className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-            disabled={isLoading}
+            disabled={isSubmitting}
           >
-            {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'} →
+            {isSubmitting ? 'Iniciando sesión...' : 'Iniciar Sesión'} →
           </Button>
+        </CardContent>
         </form>
-
-        {/* Register Link */}
-        <div className="mt-6 text-center text-sm text-neutral-600">
-          ¿No tienes una cuenta?{' '}
-          <Link
-            to="/registro"
-            className="text-orange-500 hover:text-orange-600 font-semibold"
-          >
-            Solicita acceso
-          </Link>
-        </div>
+        
+        <CardFooter className="flex-col space-y-0">
+          <p className="text-center text-sm text-neutral-600">
+            ¿No tienes una cuenta?{' '}
+            <Link
+              to="/registro"
+              className="text-orange-500 hover:text-orange-600 font-semibold"
+            >
+              Solicita acceso
+            </Link>
+          </p>
+        </CardFooter>
       </Card>
     </AuthLayout>
   );

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Search, Bell, HelpCircle } from 'lucide-react';
+import { Input, Button } from '@/components/ui';
 import { ProfileLayout } from '@/app/layout/profile-layout';
 import {
   ProfileSidebar,
@@ -86,21 +87,21 @@ export function ProfilePage() {
           <div className="flex items-center gap-4">
             {/* Search */}
             <div className="relative hidden md:block">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
+              <Input
                 type="search"
                 placeholder="Buscar productos..."
-                className="h-9 w-56 rounded-md border border-input bg-background pl-10 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="h-9 w-56 pl-10 pr-3"
               />
             </div>
 
             {/* Icons */}
-            <button className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground">
+            <Button variant="ghost" size="icon" className="rounded-full">
               <Bell className="h-5 w-5" />
-            </button>
-            <button className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground">
+            </Button>
+            <Button variant="ghost" size="icon" className="rounded-full">
               <HelpCircle className="h-5 w-5" />
-            </button>
+            </Button>
 
             {/* User avatar */}
             <button className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground">

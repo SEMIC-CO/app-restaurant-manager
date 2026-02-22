@@ -1,4 +1,5 @@
 import { Clock, Calendar, CalendarDays, CalendarRange, Search } from 'lucide-react';
+import { Input } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
 interface PeriodFilter {
@@ -44,13 +45,13 @@ export function BillingSidebar({
       <div className="px-4 pb-4">
         <p className="mb-2 text-xs font-medium uppercase opacity-80">Buscar Factura</p>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary-foreground/60" />
-          <input
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary-foreground/60 pointer-events-none z-10" />
+          <Input
             type="search"
             placeholder="Nº de factura..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="h-10 w-full rounded-lg bg-white/20 pl-10 pr-3 text-sm placeholder:text-primary-foreground/60 focus:bg-white/30 focus:outline-none"
+            className="h-10 w-full bg-white/20 pl-10 pr-3 text-sm placeholder:text-primary-foreground/60 focus:bg-white/30 border-0 text-primary-foreground"
           />
         </div>
       </div>
