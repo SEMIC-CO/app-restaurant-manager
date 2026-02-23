@@ -10,6 +10,7 @@ const navLinks = [
   { to: '/entregas', label: 'Entregas' },
   { to: '/facturacion', label: 'Facturación' },
   { to: '/reportes', label: 'Reportes' },
+  { to: '/configuracion', label: 'Configuración' },
 ];
 
 /**

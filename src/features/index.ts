@@ -1,7 +1,10 @@
-export { LoginPage, RegisterPage } from './auth';
+export { LoginPage, RegisterPage, ForgotPasswordPage } from './auth';
 export { POSPage, CheckoutPage } from './pos';
 export { KitchenPage } from './kitchen';
 export { DeliveryPage } from './delivery';
 export { AnalyticsPage } from './analytics';
 export { BillingPage, InvoiceDetailPage } from './billing';
 export { ProfilePage } from './profile';
+export { ProductCreatePage } from './products';
+export { SettingsPage, ProductsListPage, UsersListPage, UserCreatePage } from './settings';
+export { AlertDemoPage } from './demo';

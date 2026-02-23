@@ -24,3 +24,10 @@ export { Switch } from "./switch";
 export { Skeleton } from "./skeleton";
 
 export { ScrollArea } from "./scroll-area";
+
+export { Alert, AlertTitle, AlertDescription, AlertAction } from "./alert";
+
+export { Toast, ToastProvider, ToastViewport, ToastTitle, ToastDescription, ToastClose, ToastAction } from "./toast";
+export type { ToastProps, ToastActionElement } from "./toast";
+
+export { Toaster } from "./toaster";
