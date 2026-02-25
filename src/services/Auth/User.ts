@@ -7,7 +7,34 @@ class User {
             method: 'POST',
             body: JSON.stringify(data)
         });
+        
+        return resp;
+    }
+
+    async getCountries() {
+        const resp = await useFetch('countries', {
+            method: 'GET',
+        });
         console.log(resp);
+        
+        
+        return resp;
+    }
+
+    async getCities(departmentId?: string) {
+        const url = departmentId ? `cities?departmentId=${departmentId}` : 'cities';
+        const resp = await useFetch(url, {
+            method: 'GET',
+        });
+        
+        return resp;
+    }
+
+    async getDepartments(countryId?: string) {
+        const url = countryId ? `departments?countryId=${countryId}` : 'departments';
+        const resp = await useFetch(url, {
+            method: 'GET',
+        });
         
         return resp;
     }
