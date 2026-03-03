@@ -7,7 +7,6 @@ class User {
             method: 'POST',
             body: JSON.stringify(data)
         });
-        
         return resp;
     }
 
@@ -22,7 +21,7 @@ class User {
     }
 
     async getCities(departmentId?: string) {
-        const url = departmentId ? `cities?departmentId=${departmentId}` : 'cities';
+        const url = departmentId ? `cities?departament_id=${departmentId}` : 'cities';
         const resp = await useFetch(url, {
             method: 'GET',
         });
@@ -31,7 +30,7 @@ class User {
     }
 
     async getDepartments(countryId?: string) {
-        const url = countryId ? `departments?countryId=${countryId}` : 'departments';
+        const url = countryId ? `departaments?id_country=${countryId}` : 'departments';
         const resp = await useFetch(url, {
             method: 'GET',
         });

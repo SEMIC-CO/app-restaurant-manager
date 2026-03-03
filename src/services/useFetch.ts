@@ -1,8 +1,5 @@
 export const useFetch = async (path: string, options?: RequestInit) => {
     const apiUrl = import.meta.env.VITE_URL_API;
-    console.log(apiUrl);
-    console.log(options);
-    
     try {
         const response = await fetch(`${apiUrl}${path}`, {
             ...options,

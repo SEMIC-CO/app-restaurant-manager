@@ -26,12 +26,14 @@ import { useEffect, useState } from "react";
 
 const registerSchema = z
   .object({
-    name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
-    email: z.string().email("Correo electrónico inválido"),
-    phone: z.string().optional(),
+    userName: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+    userEmail: z.string().email("Correo electrónico inválido"),
+    phoneUser: z.string().optional(),
+    companyName: z.string().optional(),
     countryId: z.string().min(1, "Debes seleccionar un país"),
     departmentId: z.string().min(1, "Debes seleccionar un departamento"),
     cityId: z.string().min(1, "Debes seleccionar una ciudad"),
+    address: z.string().min(5, "La dirección debe tener al menos 5 caracteres"),
     password: z
       .string()
       .min(6, "La contraseña debe tener al menos 6 caracteres"),
@@ -58,12 +60,14 @@ export function RegisterPage() {
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      name: "",
-      email: "",
-      phone: "",
+      userName: "",
+      userEmail: "",
+      phoneUser: "",
+      companyName: "",
       countryId: "",
       departmentId: "",
       cityId: "",
+      address: "",
       password: "",
       confirmPassword: "",
       acceptTerms: false,
@@ -93,6 +97,7 @@ export function RegisterPage() {
     setCities([]);
     if (countryId) {
       const respDepartments = await userService.getDepartments(countryId);
+      console.log("respDepartments", respDepartments);
       if (respDepartments.responseCode === 200) {
         setDepartments(respDepartments.data);
       }
@@ -118,17 +123,37 @@ export function RegisterPage() {
   const onSubmit = async (data: RegisterFormData) => {
     // TODO: Implement register logic
     console.log("Register data:", data);
-    toast({
-      variant: "success",
-      title: "✅ Producto guardado",
-      description: "El producto se ha creado correctamente.",
-    });
-    const resp = await userService.registerUser(data);
-    console.log(resp);
+    const request: any = {
+      user: {
+        name: data.userName,
+        email: data.userEmail,
+        telephone: data.phoneUser,
+        password: data.password,
+      },
+      company: {
+        name: data.companyName,
+        country_id: data.countryId,
+        departament_id: data.departmentId,
+        city_id: data.cityId,
+        address: data.address,
+      },
+    };
 
-    // setTimeout(() => {
-    //   navigate('/login');
-    // }, 1000);
+    const resp = await userService.registerUser(request);
+    if (resp.responseCode === 201) {
+      toast({
+        variant: "success",
+        title: "✅ Cuenta registrada",
+        description: "La cuenta se ha registrado correctamente.",
+      });
+      navigate('/login');
+    } else {
+      toast({
+        variant: "warning",
+        title: "❌ Error al registrar",
+        description:"Ocurrió un error al registrar la cuenta.",
+      });
+    }
   };
 
   return (
@@ -141,55 +166,35 @@ export function RegisterPage() {
             </div>
           </div>
           <CardTitle className="text-2xl">Crear cuenta nueva</CardTitle>
-          <CardDescription>Regístrate en Empanada Manager</CardDescription>
+          <CardDescription>Regístrate en Restaurant Management</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-5">
+            <CardTitle className="text-xl">Datos de usuario</CardTitle>
             {/* Fila 1: Nombre y Email */}
             <div className="flex flex-col md:flex-row gap-5">
               <div className="space-y-2 flex-1">
-                <Label htmlFor="name">Nombre completo</Label>
+                <Label htmlFor="userName">Nombre completo</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
                     👤
                   </span>
                   <Input
-                    id="name"
+                    id="userName"
                     type="text"
                     placeholder="Juan Pérez"
                     className="pl-10"
-                    {...register("name")}
+                    {...register("userName")}
                   />
                 </div>
-                {errors.name && (
-                  <p className="text-xs text-red-500">{errors.name.message}</p>
+                {errors.userName && (
+                  <p className="text-xs text-red-500">
+                    {errors.userName.message}
+                  </p>
                 )}
               </div>
-
               <div className="space-y-2 flex-1">
-                <Label htmlFor="email">Correo electrónico</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
-                    📧
-                  </span>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="ejemplo@empresa.com"
-                    className="pl-10"
-                    {...register("email")}
-                  />
-                </div>
-                {errors.email && (
-                  <p className="text-xs text-red-500">{errors.email.message}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Fila 2: Teléfono y País */}
-            <div className="flex flex-col md:flex-row gap-5">
-              <div className="space-y-2 flex-1">
-                <Label htmlFor="phone">
+                <Label htmlFor="phoneUser">
                   Teléfono{" "}
                   <span className="text-neutral-400 font-normal">
                     (opcional)
@@ -200,15 +205,66 @@ export function RegisterPage() {
                     📱
                   </span>
                   <Input
-                    id="phone"
+                    id="phoneUser"
                     type="tel"
-                    placeholder="+52 123 456 7890"
+                    placeholder="3214587890"
                     className="pl-10"
-                    {...register("phone")}
+                    {...register("phoneUser")}
                   />
                 </div>
+                {errors.phoneUser && (
+                  <p className="text-xs text-red-500">
+                    {errors.phoneUser.message}
+                  </p>
+                )}
               </div>
-
+            </div>
+            {/* Fila 2: Teléfono y País */}
+            <div className="flex flex-col md:flex-row gap-5">
+              <div className="space-y-2 flex-1">
+                <Label htmlFor="userEmail">Correo electrónico</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
+                    📧
+                  </span>
+                  <Input
+                    id="userEmail"
+                    type="email"
+                    placeholder="ejemplo@empresa.com"
+                    className="pl-10"
+                    {...register("userEmail")}
+                  />
+                </div>
+                {errors.userEmail && (
+                  <p className="text-xs text-red-500">
+                    {errors.userEmail.message}
+                  </p>
+                )}
+              </div>
+            </div>
+            {/* Fila 3: Departamento y Ciudad */}
+            <CardTitle className="text-xl">Datos del negocio</CardTitle>
+            <div className="flex flex-col md:flex-row gap-5">
+              <div className="space-y-2 flex-1">
+                <Label htmlFor="companyName">Nombre del negocio</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
+                    👤
+                  </span>
+                  <Input
+                    id="companyName"
+                    type="text"
+                    placeholder="Nombre del negocio"
+                    className="pl-10"
+                    {...register("companyName")}
+                  />
+                </div>
+                {errors.companyName && (
+                  <p className="text-xs text-red-500">
+                    {errors.companyName.message}
+                  </p>
+                )}
+              </div>
               <div className="space-y-2 flex-1">
                 <Label htmlFor="country">País</Label>
                 <Select
@@ -236,8 +292,6 @@ export function RegisterPage() {
                 )}
               </div>
             </div>
-
-            {/* Fila 3: Departamento y Ciudad */}
             <div className="flex flex-col md:flex-row gap-5">
               <div className="space-y-2 flex-1">
                 <Label htmlFor="department">Departamento</Label>
@@ -255,7 +309,7 @@ export function RegisterPage() {
                         key={department.id}
                         value={department.id.toString()}
                       >
-                        {department.name}
+                        {department.departament}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -280,7 +334,7 @@ export function RegisterPage() {
                   <SelectContent>
                     {cities.map((city: any) => (
                       <SelectItem key={city.id} value={city.id.toString()}>
-                        {city.name}
+                        {city.city}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -288,6 +342,28 @@ export function RegisterPage() {
                 {errors.cityId && (
                   <p className="text-xs text-red-500">
                     {errors.cityId.message}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-col md:flex-row gap-5">
+              <div className="space-y-2 flex-1">
+                <Label htmlFor="address">Dirección</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
+                    🏠
+                  </span>
+                  <Input
+                    id="address"
+                    type="text"
+                    placeholder="Dirección del negocio"
+                    className="pl-10"
+                    {...register("address")}
+                  />
+                </div>
+                {errors.address && (
+                  <p className="text-xs text-red-500">
+                    {errors.address.message}
                   </p>
                 )}
               </div>
