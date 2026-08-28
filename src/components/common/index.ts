@@ -1,5 +1,5 @@
 export { Header } from './header';
-export { GlobalHeader } from './global-header';
+export { AppHeader, GlobalHeader } from './app-header';
 export { CategoryTabs } from './category-tabs';
 export { SearchInput } from './search-input';
 export { Navbar } from './navbar';
@@ -8,3 +8,4 @@ export { UserMenu } from './user-menu';
 export { ProductFormDialog } from './product-form-dialog';
 export { CustomerFormDialog } from './customer-form-dialog';
 export { ConfigSidebar } from './config-sidebar';
+export { MobileSidebarDrawer } from './mobile-sidebar-drawer';

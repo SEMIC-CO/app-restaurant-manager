@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { GlobalHeader } from '@/components/common';
 
 interface POSLayoutProps {
   main: ReactNode;
@@ -7,29 +6,23 @@ interface POSLayoutProps {
 }
 
 /**
- * POS-specific layout with header, main content area, and fixed sidebar
- * Responsive: sidebar collapses on smaller screens
+ * POS-specific layout (Punto de venta / Caja / Mesas).
+ * Solo contiene el contenido interno (NO trae header).
+ * El header (AppHeader) lo pone el wrapper superior (TablesPage / POSPage)
+ * para evitar duplicados cuando la página ya trae sidebar izq.
  */
 export function POSLayout({ main, sidebar }: POSLayoutProps) {
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-muted/30">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-card">
-        <GlobalHeader />
-      </header>
+    <div className="flex flex-1 overflow-hidden min-h-0 relative">
+      {/* Product grid area */}
+      <main className="flex-1 overflow-auto p-6 lg:mr-[380px] min-w-0">
+        {main}
+      </main>
 
-      {/* Main content area */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Product grid area */}
-        <main className="flex-1 overflow-auto p-6 lg:mr-[380px]">
-          {main}
-        </main>
-
-        {/* Order ticket sidebar - fixed on desktop, hidden on mobile */}
-        <aside className="fixed bottom-0 right-0 top-[73px] hidden w-[380px] border-l bg-card lg:block">
-          {sidebar}
-        </aside>
-      </div>
+      {/* Order ticket sidebar - fixed on desktop right side, below AppHeader (60px) */}
+      <aside className="fixed bottom-0 right-0 top-[60px] hidden w-[380px] border-l bg-card lg:block z-40">
+        {sidebar}
+      </aside>
     </div>
   );
 }

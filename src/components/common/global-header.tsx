@@ -1,17 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Bell, Search, User, LogOut } from 'lucide-react';
+import { Bell, Search, User, LogOut, Menu } from 'lucide-react';
 import { Input, Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
+import { useUiStore } from '@/store';
 
-const navLinks = [
-  { to: '/', label: 'Pedidos' },
-  { to: '/cocina', label: 'Cocina' },
-  { to: '/entregas', label: 'Entregas' },
-  { to: '/facturacion', label: 'Facturación' },
-  { to: '/reportes', label: 'Reportes' },
-  { to: '/configuracion', label: 'Configuración' },
-];
+const navLinks: Array<{ to: string; label: string }> = [];
 
 /**
  * Global header navigation used across all layouts
@@ -19,6 +13,7 @@ const navLinks = [
  */
 export function GlobalHeader() {
   const navigate = useNavigate();
+  const openSidebar = useUiStore((state) => state.openSidebar);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -45,13 +40,27 @@ export function GlobalHeader() {
   };
 
   return (
-    <div className="flex h-[60px] items-center justify-between px-6">
-      {/* Left: Logo + Business name */}
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-xl">
+    <div className="flex h-[60px] items-center justify-between px-4 gap-2 sm:px-6">
+      {/* Left: Menu button (mobile only) + Logo + Business name */}
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        {/* Hamburger menu button: visible only on mobile (< lg) */}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={openSidebar}
+          className="h-10 w-10 lg:hidden flex-shrink-0"
+          aria-label="Abrir menú"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary text-xl">
           🥟
         </div>
-        <span className="text-lg font-bold text-primary">Empanadas Manager</span>
+        <span className="hidden sm:block text-lg font-bold text-primary truncate">
+          Empanadas Manager
+        </span>
       </div>
 
       {/* Center: Navigation links */}
@@ -75,7 +84,7 @@ export function GlobalHeader() {
       </nav>
 
       {/* Right: Search + Notifications + User avatar */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
         {/* Search input */}
         <div className="relative hidden lg:block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
@@ -87,17 +96,17 @@ export function GlobalHeader() {
         </div>
 
         {/* Notifications bell */}
-        <Button variant="ghost" size="icon" className="rounded-full">
+        <Button variant="ghost" size="icon" className="rounded-full flex-shrink-0">
           <Bell className="h-5 w-5" />
         </Button>
 
         {/* User avatar with dropdown */}
         <div className="relative" ref={menuRef}>
-          <Button 
+          <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-            className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+            className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground flex-shrink-0"
           >
             <span className="text-sm font-medium">👤</span>
           </Button>

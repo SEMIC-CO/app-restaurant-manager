@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { AppHeader } from '@/components/common';
 
 interface ProfileLayoutProps {
   sidebar: ReactNode;
@@ -7,28 +8,30 @@ interface ProfileLayoutProps {
 }
 
 /**
- * Profile/Settings layout with left sidebar and main content
- * Based on "Perfil y Configuración" mockup
+ * Profile/Settings layout (Perfil y Configuración).
+ * Patrón B: Fila → [sidebar perfil (lg+)] | [AppHeader + SubHeader seccion + main]
  */
 export function ProfileLayout({ sidebar, header, main }: ProfileLayoutProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-muted/30">
-      {/* Left sidebar */}
-      <aside className="hidden w-[240px] flex-shrink-0 border-r lg:block">
+    <div className="flex h-screen w-full overflow-hidden bg-muted/30 relative">
+      <aside className="hidden w-[240px] flex-shrink-0 border-r lg:block h-full overflow-y-auto">
         {sidebar}
       </aside>
 
-      {/* Main content area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Header */}
-        <header className="flex h-[60px] items-center justify-between border-b bg-card px-6">
-          {header}
-        </header>
+      <div className="flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden">
+        <div className="flex-shrink-0">
+          <AppHeader />
+        </div>
 
-        {/* Main content */}
-        <main className="flex-1 overflow-auto p-6">
-          {main}
-        </main>
+        <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+          <div className="flex h-[60px] items-center justify-between border-b bg-card px-6 flex-shrink-0">
+            {header}
+          </div>
+
+          <main className="flex-1 overflow-auto p-6">
+            {main}
+          </main>
+        </div>
       </div>
     </div>
   );

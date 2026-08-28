@@ -20,9 +20,10 @@ import {
   Switch,
   Badge
 } from '@/components/ui';
-import { DashboardLayout } from '@/app/layout';
+import { ConfigLayout } from '@/app/layout';
 import { ImagePlus, Upload } from 'lucide-react';
 import { formatCurrency } from '@/utils';
+import { ConfigSidebar } from '@/components/common';
 
 const productSchema = z.object({
   name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
@@ -113,7 +114,8 @@ export function ProductCreatePage() {
   };
 
   return (
-    <DashboardLayout
+    <ConfigLayout
+      sidebar={<ConfigSidebar />}
       main={
         <div className="space-y-6">
           {/* Header */}

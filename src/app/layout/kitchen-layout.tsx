@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { GlobalHeader } from '@/components/common';
+import { AppHeader } from '@/components/common';
 
 interface KitchenLayoutProps {
   sidebar: ReactNode;
@@ -7,25 +7,21 @@ interface KitchenLayoutProps {
 }
 
 /**
- * Kitchen layout with left sidebar for pending counts and main area for ticket queue
- * Based on "Panel de Pedidos" mockup
+ * Kitchen layout (Panel de Pedidos / Cocina).
+ * Patrón B: Fila → [sidebar contador de pendientes (lg+)] | [AppHeader + main tickets]
  */
 export function KitchenLayout({ sidebar, main }: KitchenLayoutProps) {
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-muted/30">
-      {/* Global Header */}
-      <header className="sticky top-0 z-50 border-b bg-card">
-        <GlobalHeader />
-      </header>
+    <div className="flex h-screen w-full overflow-hidden bg-muted/30 relative">
+      <aside className="hidden w-[200px] flex-shrink-0 bg-primary text-primary-foreground lg:block h-full overflow-y-auto">
+        {sidebar}
+      </aside>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left sidebar - Pending counts */}
-        <aside className="hidden w-[200px] flex-shrink-0 bg-primary text-primary-foreground lg:block">
-          {sidebar}
-        </aside>
-
-        {/* Ticket queue */}
-        <main className="flex-1 overflow-auto p-6">
+      <div className="flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden">
+        <div className="flex-shrink-0">
+          <AppHeader />
+        </div>
+        <main className="flex-1 overflow-auto p-6 min-w-0">
           {main}
         </main>
       </div>

@@ -1,0 +1,143 @@
+import { useState, useRef, useEffect } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { Bell, Search, User, LogOut, Menu } from 'lucide-react';
+import { Input, Button } from '@/components/ui';
+import { cn } from '@/lib/utils';
+import { useUiStore } from '@/store';
+
+const navLinks: Array<{ to: string; label: string }> = [];
+
+/**
+ * Header interno de aplicación (va AL LADO del sidebar, no encima).
+ * Contiene: hamburguesa (mobile), logo, buscador, notificaciones y usuario.
+ *
+ * - Desktop: logo + search + bell + user
+ * - Mobile: hamburguesa ☰ (para abrir drawer) + logo reducido + user
+ */
+export function AppHeader() {
+    const navigate = useNavigate();
+    const openSidebar = useUiStore((state) => state.openSidebar);
+    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setIsUserMenuOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleProfile = () => {
+        setIsUserMenuOpen(false);
+        navigate('/perfil');
+    };
+
+    const handleLogout = () => {
+        setIsUserMenuOpen(false);
+        console.log('Logging out...');
+    };
+
+    return (
+        <div className="flex h-[60px] items-center justify-between border-b bg-card px-4 gap-2 sm:px-6">
+            {/* Left: Menu button (mobile) + Logo + Business name */}
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={openSidebar}
+                    className="h-10 w-10 lg:hidden flex-shrink-0"
+                    aria-label="Abrir menú"
+                >
+                    <Menu className="h-5 w-5" />
+                </Button>
+
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary text-xl">
+                    🥟
+                </div>
+                <span className="hidden sm:block text-lg font-bold text-primary truncate">
+                    Empanadas Manager
+                </span>
+            </div>
+
+            {/* Center: Navigation links */}
+            <nav className="hidden items-center gap-1 md:flex">
+                {navLinks.map((link) => (
+                    <NavLink
+                        key={link.to}
+                        to={link.to}
+                        className={({ isActive }) =>
+                            cn(
+                                'rounded-md px-4 py-2 text-sm font-medium transition-colors',
+                                isActive
+                                    ? 'text-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            )
+                        }
+                    >
+                        {link.label}
+                    </NavLink>
+                ))}
+            </nav>
+
+            {/* Right: Search + Notifications + User avatar */}
+            <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                {/* Search input */}
+                <div className="relative hidden lg:block">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <Input
+                        type="search"
+                        placeholder="Buscar reporte..."
+                        className="h-9 w-48 pl-10 pr-3"
+                    />
+                </div>
+
+                {/* Notifications bell */}
+                <Button variant="ghost" size="icon" className="rounded-full flex-shrink-0">
+                    <Bell className="h-5 w-5" />
+                </Button>
+
+                {/* User avatar with dropdown */}
+                <div className="relative" ref={menuRef}>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                        className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground flex-shrink-0"
+                    >
+                        <span className="text-sm font-medium">👤</span>
+                    </Button>
+
+                    {isUserMenuOpen && (
+                        <div className="absolute right-0 top-full mt-2 w-48 rounded-lg border bg-card py-1 shadow-lg z-50">
+                            <button
+                                onClick={handleProfile}
+                                className="flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-muted transition-colors"
+                            >
+                                <User className="h-4 w-4" />
+                                Perfil
+                            </button>
+                            <div className="my-1 border-t" />
+                            <button
+                                onClick={handleLogout}
+                                className="flex w-full items-center gap-3 px-4 py-2 text-sm text-destructive hover:bg-muted transition-colors"
+                            >
+                                <LogOut className="h-4 w-4" />
+                                Cerrar Sesión
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/**
+ * Alias backward-compatible (GlobalHeader ya es AppHeader interno).
+ * El único cambio es que ahora NO va envuelto en <header> transversal.
+ */
+export { AppHeader as GlobalHeader };

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Calendar } from 'lucide-react';
-import { DashboardLayout } from '@/app/layout/dashboard-layout';
 import { 
   DeliveryStats, 
   DeliverySearch, 
@@ -9,6 +8,8 @@ import {
 } from '@/components/delivery';
 import { Button } from '@/components/ui';
 import type { Order } from '@/types';
+import { ConfigLayout } from '@/app/layout';
+import { ConfigSidebar } from '@/components/common';
 
 // Mock data
 const mockReadyOrders: Order[] = [
@@ -117,7 +118,8 @@ export function DeliveryPage() {
   };
 
   return (
-    <DashboardLayout
+    <ConfigLayout
+      sidebar={<ConfigSidebar />}
       main={
         <div className="mx-auto max-w-7xl space-y-6">
           {/* Page header */}

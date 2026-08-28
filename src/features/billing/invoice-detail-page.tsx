@@ -6,6 +6,7 @@ import { CustomerInfoCard } from '@/components/billing/customer-info-card';
 import { ProductsSummaryCard } from '@/components/billing/products-summary-card';
 import { PaymentSummaryCard } from '@/components/billing/payment-summary-card';
 import { InvoiceStatusBar } from '@/components/billing/invoice-status-bar';
+import { ConfigSidebar } from '@/components/common';
 
 // Mock data - would come from API based on invoiceId
 const mockInvoiceDetail = {
@@ -111,6 +112,7 @@ export function InvoiceDetailPage() {
 
   return (
     <DashboardLayout
+      sidebar={<ConfigSidebar />}
       main={
         <div className="flex flex-col h-full">
           {/* Breadcrumb */}
@@ -149,8 +151,8 @@ export function InvoiceDetailPage() {
           <div className="grid gap-6 lg:grid-cols-3 flex-1">
             {/* Left column - Customer and Products */}
             <div className="lg:col-span-2 space-y-6">
-              <CustomerInfoCard 
-                customer={invoice.customer} 
+              <CustomerInfoCard
+                customer={invoice.customer}
                 onEdit={handleEditCustomer}
               />
               <ProductsSummaryCard products={invoice.products} />
@@ -158,7 +160,7 @@ export function InvoiceDetailPage() {
 
             {/* Right column - Payment summary */}
             <div>
-              <PaymentSummaryCard 
+              <PaymentSummaryCard
                 payment={invoice.payment}
                 onPrintReceipt={handlePrintReceipt}
                 onSendEmail={handleSendEmail}
@@ -169,7 +171,7 @@ export function InvoiceDetailPage() {
 
           {/* Status bar */}
           <div className="mt-6 -mx-6 -mb-6">
-            <InvoiceStatusBar 
+            <InvoiceStatusBar
               isOnline={true}
               lastSync="Hace 2 minutos"
               branch={invoice.branch}

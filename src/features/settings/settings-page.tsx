@@ -1,14 +1,14 @@
 import { useNavigate } from 'react-router-dom';
 import { ConfigLayout } from '@/app/layout';
 import { ConfigSidebar } from '@/components/common';
-import { 
-  Card, 
+import {
+  Card,
   CardContent,
   Button,
   Badge
 } from '@/components/ui';
-import { 
-  Package, 
+import {
+  Package,
   ShoppingBag,
   Users,
   FileDown,
@@ -75,7 +75,7 @@ export function SettingsPage() {
     <ConfigLayout
       sidebar={<ConfigSidebar />}
       main={
-        <div className="space-y-6">
+        <div className="space-y-6 p-6">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>

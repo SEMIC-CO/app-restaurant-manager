@@ -1,5 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export class Auth {
 
-class Auth {
 
-    
 }

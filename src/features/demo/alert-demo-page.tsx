@@ -1,4 +1,5 @@
 import { DashboardLayout } from '@/app/layout';
+import { ConfigSidebar } from '@/components/common';
 import {
   Alert,
   AlertTitle,
@@ -26,6 +27,7 @@ import {
 export function AlertDemoPage() {
   return (
     <DashboardLayout
+      sidebar={<ConfigSidebar />}
       main={
         <div className="space-y-6 max-w-4xl">
           <div>
