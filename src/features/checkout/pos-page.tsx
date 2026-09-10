@@ -17,7 +17,7 @@ export function POSPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { categories } = useCategories();
+  const { categories } = useCategories('productos');
   const { products, loading } = useProducts(activeCategory);
   const addItem = useCartStore((state) => state.addItem);
 

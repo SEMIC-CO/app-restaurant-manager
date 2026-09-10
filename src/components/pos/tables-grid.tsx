@@ -1,0 +1,148 @@
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui';
+import { Users, BedDouble as BedDoubleIcon } from 'lucide-react';
+import type { Table, TableStatus } from '@/types';
+
+interface TablesGridProps {
+  tables: Table[];
+  onSelectTable?: (table: Table) => void;
+  loading?: boolean;
+}
+
+const STATUS_CONFIG: Record<TableStatus, { label: string; className: string; border: string; dot: string }> = {
+  available: {
+    label: 'Libre',
+    className: 'bg-card hover:bg-primary/5 border-border',
+    border: 'border-border',
+    dot: 'bg-green-500',
+  },
+  occupied: {
+    label: 'Ocupada',
+    className: 'bg-red-500/5 hover:bg-red-500/10 border-red-500/20',
+    border: 'border-red-500/30',
+    dot: 'bg-red-500',
+  },
+  reserved: {
+    label: 'Reservada',
+    className: 'bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/20',
+    border: 'border-amber-500/30',
+    dot: 'bg-amber-500',
+  },
+};
+
+/**
+ * Cuadrícula visual de mesas del local.
+ *
+ * Cada mesa se presenta como un "cuadrito" (aspect ratio 1:1) con:
+ * - Icono de tipo de mesa (silla, terraza, bar, ventana)
+ * - Nombre / número
+ * - Categoría (chip)
+ * - Capacidad (icono + número
+ * - Estado visualizado (Libre / Ocupada / Reservada)
+ */
+export function TablesGrid({ tables, onSelectTable, loading }: TablesGridProps) {
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        {Array.from({ length: 12 }).map((_, i) => (
+          <div
+            key={i}
+            className="aspect-square animate-pulse rounded-xl bg-muted"
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (tables.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <BedDoubleIcon className="h-16 w-16 text-muted-foreground/50" strokeWidth={1.5} />
+        <p className="mt-4 text-muted-foreground">
+          No hay mesas en esta área.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+      {tables.map((table) => {
+        const config = STATUS_CONFIG[table.status];
+        const isClickable = Boolean(onSelectTable);
+
+        return (
+          <button
+            key={table.id}
+            type="button"
+            onClick={() => isClickable && onSelectTable?.(table)}
+            className={cn(
+              'group relative flex aspect-square flex-col justify-between rounded-xl border p-3 text-left transition-all',
+              'shadow-sm hover:shadow-md hover:-translate-y-0.5',
+              config.className,
+              isClickable ? 'cursor-pointer' : 'cursor-default',
+            )}
+          >
+            {/* Status dot + status label */}
+            <div className="flex items-start justify-between">
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className={cn('h-2.5 w-2.5 rounded-full ring-2 ring-offset-background', config.dot)}
+                />
+                <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  {config.label}
+                </span>
+              </span>
+
+              {/* Capacidad */}
+              <Badge
+                variant="secondary"
+                className="h-6 px-1.5 text-[11px] font-medium"
+              >
+                <Users className="h-3 w-3" />
+                {table.capacity}
+              </Badge>
+            </div>
+
+            {/* Icono + número / nombre principal */}
+            <div className="flex flex-col items-center justify-center text-center">
+              <div className="h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center transition-transform group-hover:scale-110 text-primary">
+                {table.icon ? (
+                  <span className="text-3xl sm:text-4xl leading-none">{table.icon}</span>
+                ) : (
+                  <BedDoubleIcon className="h-8 w-8 sm:h-10 sm:w-10" strokeWidth={1.75} />
+                )}
+              </div>
+              <div className="mt-2 text-sm font-semibold text-foreground sm:text-base">
+                {table.name ? table.name : `Mesa ${table.number}`}
+              </div>
+              {Boolean(table.orderNumber) && (
+                <div className="mt-0.5 text-[11px] font-medium text-primary">
+                  {table.orderNumber}
+                </div>
+              )}
+              {Boolean(table.customerName) && (
+                <div className="mt-0.5 line-clamp-1 text-[10px] text-muted-foreground">
+                  {table.customerName}
+                </div>
+              )}
+            </div>
+
+            {/* Footer - Categoría */}
+            <div className="flex justify-end">
+              <span className="rounded-md bg-muted/60 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                {table.categoryId === 'principal'
+                  ? 'Principal'
+                  : table.categoryId === 'terraza-bar'
+                    ? 'Terraza Bar'
+                    : table.categoryId === 'segundo-piso'
+                      ? '2do Piso'
+                      : table.categoryId}
+              </span>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}

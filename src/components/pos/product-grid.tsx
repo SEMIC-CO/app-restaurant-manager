@@ -15,8 +15,8 @@ export function ProductGrid({ products, onAddToCart, loading }: ProductGridProps
     return (
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div 
-            key={i} 
+          <div
+            key={i}
             className="aspect-[4/3] animate-pulse rounded-lg bg-muted"
           />
         ))}

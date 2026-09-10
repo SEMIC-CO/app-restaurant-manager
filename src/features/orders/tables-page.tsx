@@ -1,45 +1,28 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { POSLayout } from "@/app/layout";
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   CategoryTabs,
-  SearchInput,
   ConfigSidebar,
   AppHeader,
-} from "@/components/common";
-import { ProductGrid, OrderTicket } from "@/components/pos";
-import { useProducts, useCategories } from "@/hooks";
-import { useCartStore } from "@/store";
-import type { Product } from "@/types";
+} from '@/components/common';
+import { useTables, useCategories } from '@/hooks';
+import { TablesGrid } from '@/components/pos/tables-grid';
+import type { Table } from '@/types';
 
 export function TablesPage() {
   const navigate = useNavigate();
-  const [activeCategory, setActiveCategory] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState('all');
 
-  const { categories } = useCategories();
-  const { products, loading } = useProducts(activeCategory);
-  const addItem = useCartStore((state) => state.addItem);
+  const { categories } = useCategories('mesas');
+  const { tables, loading } = useTables(activeCategory);
 
-  const handleAddToCart = (product: Product) => {
-    addItem({
-      productId: product.id,
-      productName: product.name,
-      quantity: 1,
-      unitPrice: product.price,
-    });
+  const handleSelectTable = (table: Table) => {
+    navigate('/pedidos', { state: { mesa: table } });
   };
 
-  const handleCharge = () => navigate("/checkout");
-  const handleSave = () => console.log("Saving order...");
-
-  const filteredProducts = searchQuery
-    ? products.filter(
-      (p) =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.description.toLowerCase().includes(searchQuery.toLowerCase()),
-    )
-    : products;
+  const availableCount = tables.filter((t: { status: string }) => t.status === 'available').length;
+  const occupiedCount = tables.filter((t: { status: string }) => t.status === 'occupied').length;
+  const reservedCount = tables.filter((t: { status: string }) => t.status === 'reserved').length;
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-muted/30 relative">
@@ -53,38 +36,49 @@ export function TablesPage() {
         <div className="flex-shrink-0">
           <AppHeader />
         </div>
-        <POSLayout
-          main={
-            <div className="space-y-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <CategoryTabs
-                  categories={categories}
-                  activeCategory={activeCategory}
-                  onCategoryChange={setActiveCategory}
-                />
-                <div className="w-full sm:w-72">
-                  <SearchInput value={searchQuery} onChange={setSearchQuery} />
-                </div>
-              </div>
-
-              <ProductGrid
-                products={filteredProducts}
-                onAddToCart={handleAddToCart}
-                loading={loading}
-              />
+        <div className="space-y-6 p-6 overflow-y-auto">
+          {/* Header: Título + contadores rápidos */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">Mesas</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Selecciona una mesa para tomar el pedido.
+              </p>
             </div>
-          }
-          sidebar={
-            <OrderTicket
-              orderNumber="#ORD-3942"
-              tableNumber={4}
-              onCharge={handleCharge}
-              onSave={handleSave}
+
+            <div className="flex items-center gap-2 text-xs">
+              <span className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 bg-green-500/5 border-green-500/20 text-green-700 dark:text-green-400">
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+                <span className="font-medium">{availableCount} libres</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 bg-red-500/5 border-red-500/20 text-red-700 dark:text-red-400">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                <span className="font-medium">{occupiedCount} ocupadas</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 bg-amber-500/5 border-amber-500/20 text-amber-700 dark:text-amber-400">
+                <span className="h-2 w-2 rounded-full bg-amber-500" />
+                <span className="font-medium">{reservedCount} reservadas</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Tabs categorías */}
+          <div>
+            <CategoryTabs
+              categories={categories}
+              activeCategory={activeCategory}
+              onCategoryChange={setActiveCategory}
             />
-          }
-        />
+          </div>
+
+          {/* Grid de mesas */}
+          <TablesGrid
+            tables={tables}
+            onSelectTable={handleSelectTable}
+            loading={loading}
+          />
+        </div>
       </div>
     </div>
   );
 }
-

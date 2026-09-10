@@ -1,4 +1,3 @@
-export { Header } from './header';
 export { AppHeader, GlobalHeader } from './app-header';
 export { CategoryTabs } from './category-tabs';
 export { SearchInput } from './search-input';

@@ -17,6 +17,8 @@ export interface Category {
   order: number;
 }
 
+export type CategoryType = 'productos' | 'mesas';
+
 // Order Types
 export interface OrderItem {
   id: string;
@@ -44,7 +46,7 @@ export interface Order {
   estimatedTime?: number; // in minutes
 }
 
-export type OrderStatus = 
+export type OrderStatus =
   | 'pending'
   | 'preparing'
   | 'ready'
@@ -52,7 +54,7 @@ export type OrderStatus =
   | 'paid'
   | 'cancelled';
 
-export type OrderType = 
+export type OrderType =
   | 'dine-in'
   | 'takeout'
   | 'delivery';
@@ -67,12 +69,12 @@ export interface Payment {
   createdAt: Date;
 }
 
-export type PaymentMethod = 
+export type PaymentMethod =
   | 'cash'
   | 'card'
   | 'qr';
 
-export type PaymentStatus = 
+export type PaymentStatus =
   | 'pending'
   | 'completed'
   | 'failed'
@@ -86,7 +88,7 @@ export interface User {
   avatar?: string;
 }
 
-export type UserRole = 
+export type UserRole =
   | 'admin'
   | 'cashier'
   | 'kitchen';
@@ -119,4 +121,19 @@ export interface Shift {
   name: string;
   startTime: string;
   endTime: string;
+}
+
+// Table (mesa del local) Types
+export type TableStatus = 'available' | 'occupied' | 'reserved';
+
+export interface Table {
+  id: string;
+  number: number;
+  name?: string;
+  categoryId: string; // 'principal' | 'terraza-bar' | 'segundo-piso' | etc
+  capacity: number;
+  status: TableStatus;
+  orderNumber?: string; // si está ocupada/reservada
+  customerName?: string; // si está ocupada
+  icon?: string; // emoji/icono personalizado para el tipo de mesa
 }

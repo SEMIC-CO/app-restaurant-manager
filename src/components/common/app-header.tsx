@@ -1,22 +1,22 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Bell, Search, User, LogOut, Menu } from 'lucide-react';
+import { Bell, Search, User, LogOut, Menu, Sun, Moon } from 'lucide-react';
 import { Input, Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import { useUiStore } from '@/store';
+import { useThemeStore, useUiStore } from '@/store';
 
 const navLinks: Array<{ to: string; label: string }> = [];
 
 /**
  * Header interno de aplicación (va AL LADO del sidebar, no encima).
- * Contiene: hamburguesa (mobile), logo, buscador, notificaciones y usuario.
- *
- * - Desktop: logo + search + bell + user
- * - Mobile: hamburguesa ☰ (para abrir drawer) + logo reducido + user
+ * Contiene: hamburguesa (mobile), logo, buscador, toggle tema,
+ * notificaciones y usuario.
  */
 export function AppHeader() {
     const navigate = useNavigate();
     const openSidebar = useUiStore((state) => state.openSidebar);
+    const theme = useThemeStore((state) => state.theme);
+    const toggleTheme = useThemeStore((state) => state.toggleTheme);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -83,7 +83,7 @@ export function AppHeader() {
                 ))}
             </nav>
 
-            {/* Right: Search + Notifications + User avatar */}
+            {/* Right: Search + Theme toggle + Notifications + User avatar */}
             <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
                 {/* Search input */}
                 <div className="relative hidden lg:block">
@@ -94,6 +94,22 @@ export function AppHeader() {
                         className="h-9 w-48 pl-10 pr-3"
                     />
                 </div>
+
+                {/* Theme toggle light/dark */}
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleTheme}
+                    aria-label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+                    className="rounded-full flex-shrink-0"
+                >
+                    {theme === 'dark' ? (
+                        <Sun className="h-5 w-5" />
+                    ) : (
+                        <Moon className="h-5 w-5" />
+                    )}
+                </Button>
 
                 {/* Notifications bell */}
                 <Button variant="ghost" size="icon" className="rounded-full flex-shrink-0">
@@ -136,8 +152,4 @@ export function AppHeader() {
     );
 }
 
-/**
- * Alias backward-compatible (GlobalHeader ya es AppHeader interno).
- * El único cambio es que ahora NO va envuelto en <header> transversal.
- */
 export { AppHeader as GlobalHeader };
