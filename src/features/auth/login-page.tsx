@@ -5,8 +5,7 @@ import * as z from 'zod';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Button, Input, Label, Checkbox } from '@/components/ui';
 import { AuthLayout } from '@/app/layout';
-import { authService } from '@/services/Auth/Auth';
-import { userService } from '@/services/Auth/User';
+import { authService } from '@/services';
 import { useAuthStore, writeSessionScope } from '@/store';
 import { toast } from '@/hooks';
 
@@ -49,7 +48,7 @@ export function LoginPage() {
 
     setIsResending(true);
     try {
-      const resp = await userService.resendActivation({ email });
+      const resp = await authService.resendActivation({ email });
       if (resp.code === 200) {
         toast({
           variant: 'success',

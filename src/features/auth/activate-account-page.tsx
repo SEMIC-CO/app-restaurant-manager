@@ -15,7 +15,7 @@ import {
   Label,
 } from "@/components/ui";
 import { AuthLayout } from "@/app/layout";
-import { userService } from "@/services/Auth/User";
+import { authService } from "@/services";
 import { toast } from "@/hooks";
 
 const resendSchema = z.object({
@@ -50,7 +50,7 @@ export function ActivateAccountPage() {
     if (!token) return;
     setIsActivating(true);
     try {
-      const resp = await userService.activateAccount({ token });
+      const resp = await authService.activate({ token });
       if (resp.code === 200) {
         setActivationState("success");
         setActivationMsg(
@@ -75,7 +75,7 @@ export function ActivateAccountPage() {
   const onResend = async (data: ResendFormData) => {
     setIsResending(true);
     try {
-      const resp = await userService.resendActivation({ email: data.email });
+      const resp = await authService.resendActivation({ email: data.email });
       if (resp.code === 200) {
         toast({
           variant: "success",

@@ -1,36 +1,63 @@
-import type { Order } from '@/types';
-import { useCartStore } from '@/store/cart-store';
+import { apiFetch } from './useFetch';
+import { buildQuery } from './query-utils';
+import type {
+  ApiOrder,
+  ApiResponse,
+  CreateOrderPayload,
+  ListOrdersParams,
+  Paginated,
+  UpdateOrderPayload,
+} from '@/types';
 
-let orderCounter = 3942; // Starting order number from mockup
+/**
+ * Servicio de órdenes — espejo de OrdersController
+ * (list, getById, create, update, remove). Alcance sede del JWT.
+ *
+ * El front lo usa sobre todo para derivar el estado ocupada/libre de las
+ * mesas a partir de las órdenes activas (pending/preparing/ready).
+ */
+class OrderService {
 
-export const orderService = {
-  createOrder: async (): Promise<Order> => {
-    const cart = useCartStore.getState();
-    
-    orderCounter++;
-    
-    const order: Order = {
-      id: crypto.randomUUID(),
-      orderNumber: `ORD-${orderCounter}`,
-      items: [...cart.items],
-      subtotal: cart.getSubtotal(),
-      tax: cart.getTax(),
-      total: cart.getTotal(),
-      status: 'pending',
-      type: cart.tableNumber ? 'dine-in' : 'takeout',
-      tableNumber: cart.tableNumber ?? undefined,
-      customerName: cart.customerName || undefined,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    async list(params: ListOrdersParams = {}): Promise<ApiResponse<Paginated<ApiOrder>>> {
+        return apiFetch<ApiResponse<Paginated<ApiOrder>>>(
+            `orders${buildQuery({
+                page: params.page ?? 1,
+                limit: params.limit ?? 100,
+                status: params.status,
+                search: params.search,
+                dateFrom: params.dateFrom,
+                dateTo: params.dateTo,
+            })}`,
+            { method: 'GET' },
+        );
+    }
 
-    // Simulate API call
-    return Promise.resolve(order);
-  },
+    async getById(id: number): Promise<ApiResponse<ApiOrder>> {
+        return apiFetch<ApiResponse<ApiOrder>>(`orders/${id}`, {
+            method: 'GET',
+        });
+    }
 
-  getOrderById: async (orderId: string): Promise<Order | null> => {
-    // Placeholder for API call
-    console.log('Fetching order:', orderId);
-    return Promise.resolve(null);
-  },
-};
+    async create(payload: CreateOrderPayload): Promise<ApiResponse<ApiOrder>> {
+        return apiFetch<ApiResponse<ApiOrder>>('orders', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+    }
+
+    async update(id: number, payload: UpdateOrderPayload): Promise<ApiResponse<ApiOrder>> {
+        return apiFetch<ApiResponse<ApiOrder>>(`orders/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+        });
+    }
+
+    async remove(id: number): Promise<ApiResponse<null>> {
+        return apiFetch<ApiResponse<null>>(`orders/${id}`, {
+            method: 'DELETE',
+        });
+    }
+
+}
+
+export const orderService = new OrderService();

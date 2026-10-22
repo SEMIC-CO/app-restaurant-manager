@@ -20,7 +20,7 @@ import {
   SelectItem,
 } from "@/components/ui";
 import { AuthLayout } from "@/app/layout";
-import { userService } from "@/services/Auth/User";
+import { authService, locationService } from "@/services";
 import type {
   City,
   Country,
@@ -90,7 +90,7 @@ export function RegisterPage() {
 
   const getCountries = async () => {
     try {
-      const resp = await userService.getCountries();
+      const resp = await locationService.listCountries();
       setCountries(resp);
     } catch {
       toast({
@@ -108,7 +108,7 @@ export function RegisterPage() {
     setDepartments([]);
     setCities([]);
     if (countryId) {
-      const respDepartments = await userService.getDepartments(
+      const respDepartments = await locationService.listDepartaments(
         Number(countryId)
       );
       setDepartments(respDepartments);
@@ -120,7 +120,7 @@ export function RegisterPage() {
     setValue("cityId", "");
     setCities([]);
     if (departmentId) {
-      const respCities = await userService.getCities(Number(departmentId));
+      const respCities = await locationService.listCities(Number(departmentId));
       setCities(respCities);
     }
   };
@@ -143,7 +143,7 @@ export function RegisterPage() {
     };
 
     try {
-      const resp = await userService.registerUser(payload);
+      const resp = await authService.register(payload);
       if (resp.code === 201) {
         toast({
           variant: "success",

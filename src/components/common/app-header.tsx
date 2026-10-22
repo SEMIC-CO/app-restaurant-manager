@@ -4,7 +4,7 @@ import { Bell, Search, User, LogOut, Menu, Sun, Moon } from 'lucide-react';
 import { Input, Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { useThemeStore, useUiStore, useAuthStore, clearSessionScope } from '@/store';
-import { authService } from '@/services/Auth/Auth';
+import { authService } from '@/services';
 
 const navLinks: Array<{ to: string; label: string }> = [];
 

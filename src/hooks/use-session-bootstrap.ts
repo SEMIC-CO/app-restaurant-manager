@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { authService } from '@/services/Auth/Auth';
+import { authService } from '@/services';
 import { purgeLegacySession, readSessionScope, useAuthStore } from '@/store';
 
 /**
