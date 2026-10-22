@@ -8,3 +8,5 @@ export { ProductFormDialog } from './product-form-dialog';
 export { CustomerFormDialog } from './customer-form-dialog';
 export { ConfigSidebar } from './config-sidebar';
 export { MobileSidebarDrawer } from './mobile-sidebar-drawer';
+export { ProtectedRoute } from './protected-route';
+export { PublicRoute, ADMIN_HOME_ROUTE } from './public-route';

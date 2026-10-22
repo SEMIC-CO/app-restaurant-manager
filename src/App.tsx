@@ -3,6 +3,7 @@ import {
   LoginPage,
   RegisterPage,
   ForgotPasswordPage,
+  ActivateAccountPage,
   POSPage,
   CheckoutPage,
   KitchenPage,
@@ -22,39 +23,47 @@ import {
   TablesPage,
 } from '@/features';
 import { Toaster } from '@/components/ui';
-import { MobileSidebarDrawer } from '@/components/common';
+import { MobileSidebarDrawer, ProtectedRoute, PublicRoute } from '@/components/common';
+import { useSessionBootstrap } from '@/hooks';
 
 function App() {
+  useSessionBootstrap();
+
   return (
     <BrowserRouter>
       <Routes>
-        {/* Auth Routes */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/registro" element={<RegisterPage />} />
-        <Route path="/recuperar-contrasena" element={<ForgotPasswordPage />} />
+        {/* Rutas públicas */}
+        <Route element={<PublicRoute />}>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/registro" element={<RegisterPage />} />
+          <Route path="/recuperar-contrasena" element={<ForgotPasswordPage />} />
+          <Route path="/activar-cuenta" element={<ActivateAccountPage />} />
+        </Route>
 
-        {/* App Routes */}
-        <Route path="/mesas" element={<TablesPage />} />
-        <Route path="/pedidos" element={<OrdersPage />} />
-        <Route path="/checkout" element={<CheckoutPage />} />
-        <Route path="/cocina" element={<KitchenPage />} />
-        <Route path="/entregas" element={<DeliveryPage />} />
-        <Route path="/caja" element={<POSPage />} />
-        <Route path="/facturacion" element={<BillingPage />} />
-        <Route path="/facturacion/:invoiceId" element={<InvoiceDetailPage />} />
-        <Route path="/reportes" element={<AnalyticsPage />} />
-        <Route path="/perfil" element={<ProfilePage />} />
-        <Route path="/productos/nuevo" element={<ProductCreatePage />} />
+        {/* Rutas privadas (requieren sesión) */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/" element={<SettingsPage />} />
+          <Route path="/mesas" element={<TablesPage />} />
+          <Route path="/pedidos" element={<OrdersPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/cocina" element={<KitchenPage />} />
+          <Route path="/entregas" element={<DeliveryPage />} />
+          <Route path="/caja" element={<POSPage />} />
+          <Route path="/facturacion" element={<BillingPage />} />
+          <Route path="/facturacion/:invoiceId" element={<InvoiceDetailPage />} />
+          <Route path="/reportes" element={<AnalyticsPage />} />
+          <Route path="/perfil" element={<ProfilePage />} />
+          <Route path="/productos/nuevo" element={<ProductCreatePage />} />
 
-        {/* Settings Routes */}
-        <Route path="/" element={<SettingsPage />} />
-        <Route path="/configuracion/productos" element={<ProductsListPage />} />
-        <Route path="/configuracion/categorias" element={<CategoriesListPage />} />
-        <Route path="/configuracion/usuarios" element={<UsersListPage />} />
-        <Route path="/configuracion/usuarios/nuevo" element={<UserCreatePage />} />
+          {/* Configuración */}
+          <Route path="/configuracion/productos" element={<ProductsListPage />} />
+          <Route path="/configuracion/categorias" element={<CategoriesListPage />} />
+          <Route path="/configuracion/usuarios" element={<UsersListPage />} />
+          <Route path="/configuracion/usuarios/nuevo" element={<UserCreatePage />} />
 
-        {/* Demo Routes */}
-        <Route path="/demo/alerts" element={<AlertDemoPage />} />
+          {/* Demo */}
+          <Route path="/demo/alerts" element={<AlertDemoPage />} />
+        </Route>
       </Routes>
       <MobileSidebarDrawer />
       <Toaster />
