@@ -12,6 +12,7 @@ import {
   BarChart3,
   Grid3x3,
   Banknote,
+  Armchair,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -70,14 +71,19 @@ const mainNavItems: NavItem[] = [
 
 const configNavItems: NavItem[] = [
   {
-    to: '/configuracion/productos',
-    label: 'Productos',
-    icon: <Package className="h-5 w-5" />,
+    to: '/configuracion/mesas',
+    label: 'Mesas',
+    icon: <Armchair className="h-5 w-5" />,
   },
   {
     to: '/configuracion/categorias',
     label: 'Categorías',
     icon: <ShoppingBag className="h-5 w-5" />,
+  },
+  {
+    to: '/configuracion/productos',
+    label: 'Productos',
+    icon: <Package className="h-5 w-5" />,
   },
   {
     to: '/configuracion/usuarios',

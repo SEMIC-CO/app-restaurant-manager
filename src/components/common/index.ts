@@ -10,3 +10,5 @@ export { ConfigSidebar } from './config-sidebar';
 export { MobileSidebarDrawer } from './mobile-sidebar-drawer';
 export { ProtectedRoute } from './protected-route';
 export { PublicRoute, ADMIN_HOME_ROUTE } from './public-route';
+export { SectionFormDialog } from './section-form-dialog';
+export { TableFormDialog } from './table-form-dialog';

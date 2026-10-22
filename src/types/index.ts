@@ -17,8 +17,6 @@ export interface Category {
   order: number;
 }
 
-export type CategoryType = 'productos' | 'mesas';
-
 // Order Types
 export interface OrderItem {
   id: string;
@@ -215,17 +213,134 @@ export interface Shift {
   endTime: string;
 }
 
-// Table (mesa del local) Types
-export type TableStatus = 'available' | 'occupied' | 'reserved';
+// Secciones y Mesas (API /sections y /tables) — alcance sede del JWT
+export interface Section {
+  id: number;
+  name: string;
+  headquarterId: number;
+  createdBy: number;
+}
 
-export interface Table {
-  id: string;
-  number: number;
+/** Estado de activación de la mesa (columna `status` de la BD: ACTIVO/INACTIVO). */
+export type TableActiveStatus = 'ACTIVO' | 'INACTIVO';
+
+/**
+ * Estado de ocupación de la mesa. SOLO existe en el front: se deriva de las
+ * órdenes activas (pending/preparing/ready) cruzadas por `idTable`.
+ */
+export type FloorTableStatus = 'available' | 'occupied';
+
+export interface RestaurantTable {
+  id: number;
+  name: string;
+  cantPeople: number;
+  sectionId: number;
+  createdBy: number;
+  status: TableActiveStatus;
+}
+
+/**
+ * Mesa de piso/pedidos: `RestaurantTable` enriquecida con la sección y con
+ * el estado de ocupación derivado de las órdenes activas.
+ */
+export interface FloorTable {
+  id: number;
+  name: string;
+  cantPeople: number;
+  sectionId: number;
+  sectionName: string;
+  status: TableActiveStatus;
+  floorStatus: FloorTableStatus;
+  orderNumber?: string;
+  customerName?: string;
+}
+
+export interface CreateSectionPayload {
+  name: string;
+}
+
+export interface UpdateSectionPayload {
   name?: string;
-  categoryId: string; // 'principal' | 'terraza-bar' | 'segundo-piso' | etc
-  capacity: number;
-  status: TableStatus;
-  orderNumber?: string; // si está ocupada/reservada
-  customerName?: string; // si está ocupada
-  icon?: string; // emoji/icono personalizado para el tipo de mesa
+}
+
+export interface CreateTablePayload {
+  name: string;
+  cantPeople: number;
+  sectionId: number;
+  status?: TableActiveStatus;
+}
+
+export interface UpdateTablePayload {
+  name?: string;
+  cantPeople?: number;
+  sectionId?: number;
+  status?: TableActiveStatus;
+}
+
+export interface ListSectionsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
+export interface ListTablesParams extends ListSectionsParams {
+  sectionId?: number;
+  status?: TableActiveStatus;
+}
+
+// Órdenes (API /orders)
+export type ApiOrderStatus = 'pending' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
+
+export interface ApiOrderItem {
+  id: number | null;
+  productId: number;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+}
+
+export interface ApiOrder {
+  id: number;
+  orderNumber: string;
+  customerName: string | null;
+  tableNumber: string | null;
+  status: ApiOrderStatus;
+  subtotal: number;
+  discount: number;
+  total: number;
+  orderDatetime: string;
+  paymentMethod: string | null;
+  notes: string | null;
+  headquarterId: number | null;
+  userId: number | null;
+  idTable: number | null;
+  items: ApiOrderItem[];
+}
+
+export interface ListOrdersParams {
+  page?: number;
+  limit?: number;
+  status?: ApiOrderStatus;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface CreateOrderPayload {
+  customerName?: string;
+  tableNumber?: string;
+  idTable?: number;
+  discount?: number;
+  notes?: string;
+  items: { productId: number; quantity: number }[];
+}
+
+export interface UpdateOrderPayload {
+  status?: ApiOrderStatus;
+  customerName?: string;
+  tableNumber?: string;
+  idTable?: number;
+  discount?: number;
+  paymentMethod?: string;
+  notes?: string;
 }

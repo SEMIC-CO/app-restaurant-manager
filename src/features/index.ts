@@ -6,6 +6,6 @@ export { AnalyticsPage } from './analytics';
 export { BillingPage, InvoiceDetailPage } from './billing';
 export { ProfilePage } from './profile';
 export { ProductCreatePage } from './products';
-export { SettingsPage, ProductsListPage, CategoriesListPage, UsersListPage, UserCreatePage } from './settings';
+export { SettingsPage, ProductsListPage, CategoriesListPage, UsersListPage, UserCreatePage, TablesListPage } from './settings';
 export { OrdersPage, TablesPage } from './orders';
 export { AlertDemoPage } from './demo';

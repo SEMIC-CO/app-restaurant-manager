@@ -18,6 +18,7 @@ import {
   CategoriesListPage,
   UsersListPage,
   UserCreatePage,
+  TablesListPage,
   AlertDemoPage,
   OrdersPage,
   TablesPage,
@@ -58,6 +59,7 @@ function App() {
           {/* Configuración */}
           <Route path="/configuracion/productos" element={<ProductsListPage />} />
           <Route path="/configuracion/categorias" element={<CategoriesListPage />} />
+          <Route path="/configuracion/mesas" element={<TablesListPage />} />
           <Route path="/configuracion/usuarios" element={<UsersListPage />} />
           <Route path="/configuracion/usuarios/nuevo" element={<UserCreatePage />} />
 
