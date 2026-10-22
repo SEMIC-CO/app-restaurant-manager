@@ -1,41 +1,71 @@
-import { useFetch } from "../useFetch";
+import { apiFetch } from "../useFetch";
+import type {
+  ActivateAccountPayload,
+  ApiResponse,
+  City,
+  Country,
+  Departament,
+  MessageResponse,
+  Paginated,
+  RegisterPayload,
+  RegisterResponse,
+  ResendActivationPayload,
+} from "@/types";
 
 class User {
 
-    async registerUser(data: any) {
-        const resp = await useFetch('register', {
+    async registerUser(payload: RegisterPayload): Promise<ApiResponse<RegisterResponse>> {
+        return apiFetch<ApiResponse<RegisterResponse>>('auth/register', {
             method: 'POST',
-            body: JSON.stringify(data)
+            body: JSON.stringify(payload),
         });
-        return resp;
     }
 
-    async getCountries() {
-        const resp = await useFetch('countries', {
-            method: 'GET',
+    async activateAccount(payload: ActivateAccountPayload): Promise<ApiResponse<MessageResponse | null>> {
+        return apiFetch<ApiResponse<MessageResponse | null>>('auth/activate', {
+            method: 'POST',
+            body: JSON.stringify(payload),
         });
-        console.log(resp);
-        
-        
-        return resp;
     }
 
-    async getCities(departmentId?: string) {
-        const url = departmentId ? `cities?departament_id=${departmentId}` : 'cities';
-        const resp = await useFetch(url, {
-            method: 'GET',
+    async resendActivation(payload: ResendActivationPayload): Promise<ApiResponse<MessageResponse>> {
+        return apiFetch<ApiResponse<MessageResponse>>('auth/resend-activation', {
+            method: 'POST',
+            body: JSON.stringify(payload),
         });
-        
-        return resp;
     }
 
-    async getDepartments(countryId?: string) {
-        const url = countryId ? `departaments?id_country=${countryId}` : 'departments';
-        const resp = await useFetch(url, {
+    async getCountries(): Promise<Country[]> {
+        const resp = await apiFetch<ApiResponse<Country[]>>('locations/countries', {
             method: 'GET',
         });
-        
-        return resp;
+        return resp.code === 200 ? resp.data : [];
+    }
+
+    async getDepartments(countryId: number): Promise<Departament[]> {
+        const resp = await apiFetch<ApiResponse<Departament[]>>(`locations/departaments?countryId=${countryId}`, {
+            method: 'GET',
+        });
+        return resp.code === 200 ? resp.data : [];
+    }
+
+    async getCities(departamentId: number): Promise<City[]> {
+        const cities: City[] = [];
+        let page = 1;
+        let totalPages = 1;
+
+        while (page <= totalPages && page <= 10) {
+            const resp = await apiFetch<ApiResponse<Paginated<City>>>(
+                `locations/cities?departamentId=${departamentId}&page=${page}&limit=100`,
+                { method: 'GET' },
+            );
+            if (resp.code !== 200) break;
+            cities.push(...resp.data.items);
+            totalPages = resp.data.totalPages;
+            page++;
+        }
+
+        return cities;
     }
 
 }

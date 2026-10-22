@@ -21,6 +21,12 @@ import {
 } from "@/components/ui";
 import { AuthLayout } from "@/app/layout";
 import { userService } from "@/services/Auth/User";
+import type {
+  City,
+  Country,
+  Departament,
+  RegisterPayload,
+} from "@/types";
 import { toast } from "@/hooks";
 import { useEffect, useState } from "react";
 
@@ -28,16 +34,16 @@ const registerSchema = z
   .object({
     userName: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
     userEmail: z.string().email("Correo electrónico inválido"),
-    phoneUser: z.string().optional(),
-    companyName: z.string().optional(),
+    phoneUser: z.string().min(1, "El teléfono es requerido"),
+    companyName: z.string().min(1, "El nombre del negocio es requerido"),
     countryId: z.string().min(1, "Debes seleccionar un país"),
     departmentId: z.string().min(1, "Debes seleccionar un departamento"),
     cityId: z.string().min(1, "Debes seleccionar una ciudad"),
     address: z.string().min(5, "La dirección debe tener al menos 5 caracteres"),
     password: z
       .string()
-      .min(6, "La contraseña debe tener al menos 6 caracteres"),
-    confirmPassword: z.string(),
+      .min(8, "La contraseña debe tener al menos 8 caracteres"),
+    confirmPassword: z.string().min(1, "Debes confirmar la contraseña"),
     acceptTerms: z.boolean().refine((val) => val === true, {
       message: "Debes aceptar los términos y condiciones",
     }),
@@ -74,18 +80,24 @@ export function RegisterPage() {
     },
   });
 
-  const [countries, setCountries] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [cities, setCities] = useState([]);
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [departments, setDepartments] = useState<Departament[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
 
   useEffect(() => {
     getCountries();
   }, []);
 
   const getCountries = async () => {
-    const resp = await userService.getCountries();
-    if (resp.responseCode === 200) {
-      setCountries(resp.data);
+    try {
+      const resp = await userService.getCountries();
+      setCountries(resp);
+    } catch {
+      toast({
+        variant: "warning",
+        title: "❌ Error al cargar",
+        description: "No se pudo obtener el listado de países.",
+      });
     }
   };
 
@@ -96,11 +108,10 @@ export function RegisterPage() {
     setDepartments([]);
     setCities([]);
     if (countryId) {
-      const respDepartments = await userService.getDepartments(countryId);
-      console.log("respDepartments", respDepartments);
-      if (respDepartments.responseCode === 200) {
-        setDepartments(respDepartments.data);
-      }
+      const respDepartments = await userService.getDepartments(
+        Number(countryId)
+      );
+      setDepartments(respDepartments);
     }
   };
 
@@ -109,10 +120,8 @@ export function RegisterPage() {
     setValue("cityId", "");
     setCities([]);
     if (departmentId) {
-      const respCities = await userService.getCities(departmentId);
-      if (respCities.responseCode === 200) {
-        setCities(respCities.data);
-      }
+      const respCities = await userService.getCities(Number(departmentId));
+      setCities(respCities);
     }
   };
 
@@ -121,37 +130,41 @@ export function RegisterPage() {
   const acceptTerms = watch("acceptTerms");
 
   const onSubmit = async (data: RegisterFormData) => {
-    // TODO: Implement register logic
-    console.log("Register data:", data);
-    const request: any = {
-      user: {
-        name: data.userName,
-        email: data.userEmail,
-        telephone: data.phoneUser,
-        password: data.password,
-      },
-      company: {
-        name: data.companyName,
-        country_id: data.countryId,
-        departament_id: data.departmentId,
-        city_id: data.cityId,
-        address: data.address,
-      },
+    const payload: RegisterPayload = {
+      name: data.userName,
+      email: data.userEmail,
+      password: data.password,
+      telephone: data.phoneUser,
+      companyName: data.companyName,
+      companyAddress: data.address,
+      countryId: Number(data.countryId),
+      departamentId: Number(data.departmentId),
+      cityId: Number(data.cityId),
     };
 
-    const resp = await userService.registerUser(request);
-    if (resp.responseCode === 201) {
-      toast({
-        variant: "success",
-        title: "✅ Cuenta registrada",
-        description: "La cuenta se ha registrado correctamente.",
-      });
-      navigate('/login');
-    } else {
+    try {
+      const resp = await userService.registerUser(payload);
+      if (resp.code === 201) {
+        toast({
+          variant: "success",
+          title: "✅ Registro realizado correctamente",
+          description: "Revisa tu correo para activar tu cuenta.",
+        });
+        navigate("/login");
+      } else {
+        toast({
+          variant: "warning",
+          title: "❌ Error al registrar",
+          description: Array.isArray(resp.data)
+            ? resp.data.join(", ")
+            : resp.msg || "Ocurrió un error al registrar la cuenta.",
+        });
+      }
+    } catch {
       toast({
         variant: "warning",
         title: "❌ Error al registrar",
-        description:"Ocurrió un error al registrar la cuenta.",
+        description: "No se pudo conectar con el servidor.",
       });
     }
   };
@@ -194,12 +207,7 @@ export function RegisterPage() {
                 )}
               </div>
               <div className="space-y-2 flex-1">
-                <Label htmlFor="phoneUser">
-                  Teléfono{" "}
-                  <span className="text-neutral-400 font-normal">
-                    (opcional)
-                  </span>
-                </Label>
+                <Label htmlFor="phoneUser">Teléfono</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
                     📱
@@ -275,12 +283,12 @@ export function RegisterPage() {
                     <SelectValue placeholder="Selecciona un país" />
                   </SelectTrigger>
                   <SelectContent>
-                    {countries.map((country: any) => (
+                    {countries.map((country) => (
                       <SelectItem
                         key={country.id}
                         value={country.id.toString()}
                       >
-                        {country.countrie}
+                        {country.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -304,12 +312,12 @@ export function RegisterPage() {
                     <SelectValue placeholder="Selecciona un departamento" />
                   </SelectTrigger>
                   <SelectContent>
-                    {departments.map((department: any) => (
+                    {departments.map((department) => (
                       <SelectItem
                         key={department.id}
                         value={department.id.toString()}
                       >
-                        {department.departament}
+                        {department.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -332,9 +340,9 @@ export function RegisterPage() {
                     <SelectValue placeholder="Selecciona una ciudad" />
                   </SelectTrigger>
                   <SelectContent>
-                    {cities.map((city: any) => (
+                    {cities.map((city) => (
                       <SelectItem key={city.id} value={city.id.toString()}>
-                        {city.city}
+                        {city.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
