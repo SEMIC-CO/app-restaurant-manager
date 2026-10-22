@@ -1,11 +1,10 @@
 import { create } from 'zustand';
-import type { OrderItem, PaymentMethod, Table } from '@/types';
+import type { FloorTable, OrderItem, PaymentMethod } from '@/types';
 
 interface CartState {
   items: OrderItem[];
   customerName: string;
-  tableNumber: number | null;
-  table: Table | null;
+  table: FloorTable | null;
   paymentMethod: PaymentMethod;
 
   // Actions
@@ -13,8 +12,7 @@ interface CartState {
   removeItem: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   setCustomerName: (name: string) => void;
-  setTableNumber: (table: number | null) => void;
-  setTable: (table: Table | null) => void;
+  setTable: (table: FloorTable | null) => void;
   setPaymentMethod: (method: PaymentMethod) => void;
   clearCart: () => void;
 
@@ -29,7 +27,6 @@ const TAX_RATE = 0.10; // 10%
 export const useCartStore = create<CartState>((set, get) => ({
   items: [],
   customerName: '',
-  tableNumber: null,
   table: null,
   paymentMethod: 'cash',
 
@@ -83,14 +80,12 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   setCustomerName: (customerName) => set({ customerName }),
-  setTableNumber: (tableNumber) => set({ tableNumber }),
-  setTable: (table) => set({ table, tableNumber: table ? table.number : null }),
+  setTable: (table) => set({ table }),
   setPaymentMethod: (paymentMethod) => set({ paymentMethod }),
 
   clearCart: () => set({
     items: [],
     customerName: '',
-    tableNumber: null,
     table: null,
   }),
 

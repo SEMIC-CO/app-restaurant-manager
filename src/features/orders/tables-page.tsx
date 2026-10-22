@@ -5,24 +5,36 @@ import {
   ConfigSidebar,
   AppHeader,
 } from '@/components/common';
-import { useTables, useCategories } from '@/hooks';
+import { useFloorTables } from '@/hooks';
 import { TablesGrid } from '@/components/pos/tables-grid';
-import type { Table } from '@/types';
+import type { Category, FloorTable } from '@/types';
 
 export function TablesPage() {
   const navigate = useNavigate();
-  const [activeCategory, setActiveCategory] = useState('all');
+  const [activeSection, setActiveSection] = useState('all');
 
-  const { categories } = useCategories('mesas');
-  const { tables, loading } = useTables(activeCategory);
+  const { tables: allTables, sections, loading } = useFloorTables();
 
-  const handleSelectTable = (table: Table) => {
+  const categories: Category[] = [
+    { id: 'all', name: 'Todas', order: 0 },
+    ...sections.map((section, index) => ({
+      id: String(section.id),
+      name: section.name,
+      order: index + 1,
+    })),
+  ];
+
+  const tables =
+    activeSection === 'all'
+      ? allTables
+      : allTables.filter((table) => String(table.sectionId) === activeSection);
+
+  const handleSelectTable = (table: FloorTable) => {
     navigate('/pedidos', { state: { mesa: table } });
   };
 
-  const availableCount = tables.filter((t: { status: string }) => t.status === 'available').length;
-  const occupiedCount = tables.filter((t: { status: string }) => t.status === 'occupied').length;
-  const reservedCount = tables.filter((t: { status: string }) => t.status === 'reserved').length;
+  const availableCount = tables.filter((t) => t.floorStatus === 'available').length;
+  const occupiedCount = tables.filter((t) => t.floorStatus === 'occupied').length;
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-muted/30 relative">
@@ -55,19 +67,15 @@ export function TablesPage() {
                 <span className="h-2 w-2 rounded-full bg-red-500" />
                 <span className="font-medium">{occupiedCount} ocupadas</span>
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 bg-amber-500/5 border-amber-500/20 text-amber-700 dark:text-amber-400">
-                <span className="h-2 w-2 rounded-full bg-amber-500" />
-                <span className="font-medium">{reservedCount} reservadas</span>
-              </span>
             </div>
           </div>
 
-          {/* Tabs categorías */}
+          {/* Tabs por sección real del backend */}
           <div>
             <CategoryTabs
               categories={categories}
-              activeCategory={activeCategory}
-              onCategoryChange={setActiveCategory}
+              activeCategory={activeSection}
+              onCategoryChange={setActiveSection}
             />
           </div>
 

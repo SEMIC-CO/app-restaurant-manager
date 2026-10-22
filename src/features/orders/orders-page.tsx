@@ -8,7 +8,7 @@ import {
   AppHeader,
 } from '@/components/common';
 import { ProductGrid, OrderTicket } from '@/components/pos';
-import { useProducts, useCategories, useTables } from '@/hooks';
+import { useProducts, useCategories, useFloorTables } from '@/hooks';
 import { useCartStore } from '@/store';
 import {
   Dialog,
@@ -23,12 +23,11 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Users, Table as TableIcon, Filter, BedDouble as BedDoubleIcon } from 'lucide-react';
-import type { Product, Table, Category, TableStatus } from '@/types';
+import type { Product, FloorTable, FloorTableStatus } from '@/types';
 
-const statusStyles: Record<TableStatus, { dot: string; badge: string; label: string }> = {
+const statusStyles: Record<FloorTableStatus, { dot: string; badge: string; label: string }> = {
   available: { dot: 'bg-emerald-500', badge: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30', label: 'Libre' },
   occupied: { dot: 'bg-red-500', badge: 'bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30', label: 'Ocupada' },
-  reserved: { dot: 'bg-amber-500', badge: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30', label: 'Reservada' },
 };
 
 export function OrdersPage() {
@@ -37,45 +36,44 @@ export function OrdersPage() {
 
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [table, setTable] = useState<Table | null>(null);
+  const [table, setTable] = useState<FloorTable | null>(null);
   const [isTableSelectorOpen, setIsTableSelectorOpen] = useState(false);
   const [selectorSearch, setSelectorSearch] = useState('');
 
-  const { categories } = useCategories('productos');
+  const { categories } = useCategories();
   const { products, loading } = useProducts(activeCategory);
-  const { tables: allTables, loading: tablesLoading } = useTables('all');
-  const { categories: tableCategories } = useCategories('mesas');
+  const { tables: allTables, sections, loading: tablesLoading } = useFloorTables();
 
   const addItem = useCartStore((state) => state.addItem);
   const setTableInStore = useCartStore((state) => state.setTable);
   const clearTable = useCartStore((state) => state.setTable);
 
-  const categoryNameMap = useMemo(() => {
+  const sectionNameMap = useMemo(() => {
     const map: Record<string, string> = {};
-    tableCategories.forEach((c: Category) => { map[c.id] = c.name; });
+    sections.forEach((s) => { map[String(s.id)] = s.name; });
     return map;
-  }, [tableCategories]);
+  }, [sections]);
 
   const filteredTables = useMemo(() => {
     if (!selectorSearch.trim()) return allTables;
     const q = selectorSearch.toLowerCase();
     return allTables.filter((t) =>
-      String(t.number).includes(q) ||
-      (t.name ?? '').toLowerCase().includes(q) ||
-      (categoryNameMap[t.categoryId] ?? '').toLowerCase().includes(q)
+      t.name.toLowerCase().includes(q) ||
+      t.sectionName.toLowerCase().includes(q)
     );
-  }, [allTables, selectorSearch, categoryNameMap]);
+  }, [allTables, selectorSearch]);
 
   const groupedTables = useMemo(() => {
-    const groups: Record<string, Table[]> = {};
+    const groups: Record<string, FloorTable[]> = {};
     filteredTables.forEach((t) => {
-      if (!groups[t.categoryId]) groups[t.categoryId] = [];
-      groups[t.categoryId].push(t);
+      const key = String(t.sectionId);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(t);
     });
     return groups;
   }, [filteredTables]);
 
-  const handleChooseTable = (nuevaMesa: Table) => {
+  const handleChooseTable = (nuevaMesa: FloorTable) => {
     setTable(nuevaMesa);
     setTableInStore(nuevaMesa);
     setIsTableSelectorOpen(false);
@@ -84,7 +82,7 @@ export function OrdersPage() {
 
   // Lee la mesa enviada desde TablesPage a través del state de React Router
   useEffect(() => {
-    const incoming = (location.state as { mesa?: Table } | null)?.mesa;
+    const incoming = (location.state as { mesa?: FloorTable } | null)?.mesa;
     if (incoming) {
       setTable(incoming);
       setTableInStore(incoming);
@@ -163,8 +161,8 @@ export function OrdersPage() {
                     <TableIcon className="h-4 w-4" />
                     {table ? (
                       <>
-                        Cambiar · {table.name ?? `Mesa ${table.number}`}
-                        <span className={`inline-block h-2 w-2 rounded-full ${statusStyles[table.status].dot}`} />
+                        Cambiar · {table.name}
+                        <span className={`inline-block h-2 w-2 rounded-full ${statusStyles[table.floorStatus].dot}`} />
                       </>
                     ) : (
                       'Asignar Mesa al Pedido'
@@ -188,7 +186,7 @@ export function OrdersPage() {
                       <Input
                         value={selectorSearch}
                         onChange={(e) => setSelectorSearch(e.target.value)}
-                        placeholder="Buscar por número, nombre o zona..."
+                        placeholder="Buscar por nombre o sección..."
                         className="pl-9"
                       />
                     </div>
@@ -205,12 +203,12 @@ export function OrdersPage() {
                       </div>
                     ) : (
                       <div className="space-y-5 pt-2">
-                        {Object.entries(groupedTables).map(([catId, mesas]) => (
-                          <div key={catId}>
+                        {Object.entries(groupedTables).map(([sectionId, mesas]) => (
+                          <div key={sectionId}>
                             <div className="flex items-center justify-between mb-2">
                               <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
                                 <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                                {categoryNameMap[catId] ?? catId}
+                                {sectionNameMap[sectionId] ?? mesas[0]?.sectionName ?? sectionId}
                                 <span className="text-xs font-normal text-muted-foreground">
                                   ({mesas.length})
                                 </span>
@@ -219,7 +217,7 @@ export function OrdersPage() {
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                               {mesas.map((t) => {
                                 const isCurrent = table?.id === t.id;
-                                const style = statusStyles[t.status];
+                                const style = statusStyles[t.floorStatus];
                                 return (
                                   <button
                                     key={t.id}
@@ -235,15 +233,11 @@ export function OrdersPage() {
                                   >
                                     <div className="flex items-start justify-between w-full">
                                       <div className="flex items-center gap-2">
-                                        {t.icon ? (
-                                          <span className="text-lg leading-none">{t.icon}</span>
-                                        ) : (
-                                          <div className="h-6 w-6 rounded bg-primary/15 text-primary flex items-center justify-center flex-shrink-0">
-                                            <BedDoubleIcon className="h-4 w-4" strokeWidth={2} />
-                                          </div>
-                                        )}
+                                        <div className="h-6 w-6 rounded bg-primary/15 text-primary flex items-center justify-center flex-shrink-0">
+                                          <BedDoubleIcon className="h-4 w-4" strokeWidth={2} />
+                                        </div>
                                         <span className="font-semibold text-sm">
-                                          {t.name ?? `Mesa ${t.number}`}
+                                          {t.name}
                                         </span>
                                       </div>
                                       <span className={`h-2.5 w-2.5 rounded-full ${style.dot} ring-2 ring-white dark:ring-background`} />
@@ -251,7 +245,7 @@ export function OrdersPage() {
                                     <div className="flex items-center justify-between w-full gap-2">
                                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                         <Users className="h-3 w-3" />
-                                        {t.capacity} pers.
+                                        {t.cantPeople} pers.
                                       </div>
                                       <Badge variant="outline" className={`text-[10px] px-1.5 py-0.5 border ${style.badge}`}>
                                         {style.label}
@@ -282,7 +276,7 @@ export function OrdersPage() {
                       <div className="text-sm">
                         <span className="text-muted-foreground">Asignada:</span>{' '}
                         <span className="font-medium">
-                          {table.name ?? `Mesa ${table.number}`}
+                          {table.name}
                         </span>
                       </div>
                       <Button variant="ghost" size="sm" onClick={handleClearTable}>
@@ -297,7 +291,6 @@ export function OrdersPage() {
                 <OrderTicket
                   orderNumber="#ORD-3942"
                   table={table}
-                  tableNumber={table?.number}
                   onCharge={handleCharge}
                   onSave={handleSave}
                   onClearTable={table ? handleClearTable : undefined}

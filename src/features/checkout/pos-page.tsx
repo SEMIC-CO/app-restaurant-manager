@@ -17,7 +17,7 @@ export function POSPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { categories } = useCategories('productos');
+  const { categories } = useCategories();
   const { products, loading } = useProducts(activeCategory);
   const addItem = useCartStore((state) => state.addItem);
 
@@ -75,7 +75,6 @@ export function POSPage() {
           sidebar={
             <OrderTicket
               orderNumber="#ORD-3942"
-              tableNumber={4}
               onCharge={handleCharge}
               onSave={handleSave}
             />
