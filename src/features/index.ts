@@ -1,4 +1,4 @@
-export { LoginPage, RegisterPage, ForgotPasswordPage } from './auth';
+export { LoginPage, RegisterPage, ForgotPasswordPage, ActivateAccountPage } from './auth';
 export { POSPage, CheckoutPage } from './checkout';
 export { KitchenPage } from './kitchen';
 export { DeliveryPage } from './delivery';
