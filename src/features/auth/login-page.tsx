@@ -2,13 +2,17 @@ import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Button, Input, Label, Checkbox } from '@/components/ui';
 import { AuthLayout } from '@/app/layout';
+import { authService } from '@/services/Auth/Auth';
+import { userService } from '@/services/Auth/User';
+import { useAuthStore, writeSessionScope } from '@/store';
+import { toast } from '@/hooks';
 
 const loginSchema = z.object({
   email: z.string().email('Correo electrónico inválido'),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
   rememberMe: z.boolean(),
 });
 
@@ -16,6 +20,8 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const setSession = useAuthStore((state) => state.setSession);
   const {
     register,
     handleSubmit,
@@ -32,14 +38,81 @@ export function LoginPage() {
   });
 
   const [showPassword, setShowPassword] = React.useState(false);
+  const [activationRequired, setActivationRequired] = React.useState(false);
+  const [activationMsg, setActivationMsg] = React.useState('');
+  const [isResending, setIsResending] = React.useState(false);
   const rememberMe = watch('rememberMe');
 
+  const onResendActivation = async () => {
+    const email = watch('email');
+    if (!email) return;
+
+    setIsResending(true);
+    try {
+      const resp = await userService.resendActivation({ email });
+      if (resp.code === 200) {
+        toast({
+          variant: 'success',
+          title: '✅ Enlace reenviado',
+          description:
+            resp.data?.message ??
+            'Si el correo está registrado y pendiente de activación, recibirás un nuevo enlace.',
+        });
+      } else {
+        toast({
+          variant: 'warning',
+          title: '❌ Error al reenviar',
+          description: resp.msg || 'Ocurrió un error al reenviar el enlace.',
+        });
+      }
+    } catch {
+      toast({
+        variant: 'warning',
+        title: '❌ Error al reenviar',
+        description: 'No se pudo conectar con el servidor.',
+      });
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   const onSubmit = async (data: LoginFormData) => {
-    // TODO: Implement login logic
-    console.log('Login data:', data);
-    setTimeout(() => {
-      navigate('/');
-    }, 1000);
+    try {
+      const resp = await authService.login({
+        email: data.email,
+        password: data.password,
+      });
+
+      if (resp.code === 200) {
+        setSession(resp.data.accessToken, resp.data.user);
+        writeSessionScope(data.rememberMe ? 'persistent' : 'session');
+        toast({
+          variant: 'success',
+          title: '✅ Sesión iniciada',
+          description: `Bienvenido, ${resp.data.user.name}.`,
+        });
+        const from = (location.state as { from?: { pathname: string; search?: string } } | null)?.from;
+        navigate(`${from?.pathname ?? '/'}${from?.search ?? ''}`, { replace: true });
+      } else {
+        if (resp.code === 403) {
+          setActivationRequired(true);
+          setActivationMsg(
+            resp.msg || 'La cuenta no está activada. Revisa el correo de activación.'
+          );
+        }
+        toast({
+          variant: 'warning',
+          title: '❌ Error al iniciar sesión',
+          description: resp.msg || 'Credenciales inválidas.',
+        });
+      }
+    } catch {
+      toast({
+        variant: 'warning',
+        title: '❌ Error al iniciar sesión',
+        description: 'No se pudo conectar con el servidor.',
+      });
+    }
   };
 
   return (
@@ -136,6 +209,24 @@ export function LoginPage() {
           >
             {isSubmitting ? 'Iniciando sesión...' : 'Iniciar Sesión'} →
           </Button>
+
+          {activationRequired && (
+            <div className="space-y-2 rounded-lg border border-orange-200 bg-orange-50 p-3">
+              <p className="text-xs text-orange-700">{activationMsg}</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={onResendActivation}
+                disabled={isResending}
+              >
+                {isResending
+                  ? 'Reenviando...'
+                  : 'Reenviar enlace de activación'}
+              </Button>
+            </div>
+          )}
         </CardContent>
         </form>
         

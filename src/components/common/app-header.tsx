@@ -3,7 +3,8 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { Bell, Search, User, LogOut, Menu, Sun, Moon } from 'lucide-react';
 import { Input, Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import { useThemeStore, useUiStore } from '@/store';
+import { useThemeStore, useUiStore, useAuthStore, clearSessionScope } from '@/store';
+import { authService } from '@/services/Auth/Auth';
 
 const navLinks: Array<{ to: string; label: string }> = [];
 
@@ -17,6 +18,8 @@ export function AppHeader() {
     const openSidebar = useUiStore((state) => state.openSidebar);
     const theme = useThemeStore((state) => state.theme);
     const toggleTheme = useThemeStore((state) => state.toggleTheme);
+    const user = useAuthStore((state) => state.user);
+    const clearSession = useAuthStore((state) => state.clearSession);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -35,9 +38,16 @@ export function AppHeader() {
         navigate('/perfil');
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
         setIsUserMenuOpen(false);
-        console.log('Logging out...');
+        try {
+            await authService.logout();
+        } catch {
+            /* ignore */
+        }
+        clearSession();
+        clearSessionScope();
+        navigate('/login');
     };
 
     return (
@@ -124,11 +134,23 @@ export function AppHeader() {
                         onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                         className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground flex-shrink-0"
                     >
-                        <span className="text-sm font-medium">👤</span>
+                        <span className="text-sm font-medium">
+                            {user ? user.name.charAt(0).toUpperCase() : '👤'}
+                        </span>
                     </Button>
 
                     {isUserMenuOpen && (
                         <div className="absolute right-0 top-full mt-2 w-48 rounded-lg border bg-card py-1 shadow-lg z-50">
+                            {user && (
+                                <div className="border-b px-4 py-2">
+                                    <p className="truncate text-sm font-medium">
+                                        {user.name}
+                                    </p>
+                                    <p className="truncate text-xs text-muted-foreground">
+                                        {user.email}
+                                    </p>
+                                </div>
+                            )}
                             <button
                                 onClick={handleProfile}
                                 className="flex w-full items-center gap-3 px-4 py-2 text-sm hover:bg-muted transition-colors"
