@@ -288,6 +288,38 @@ export interface ListTablesParams extends ListSectionsParams {
   status?: TableActiveStatus;
 }
 
+// Categorías (API /categories) — alcance sede del JWT
+/**
+ * Categoría del backend (`categories`). A diferencia del tipo `Category` del
+ * catálogo mock, el backend expone `color` y `active` (sin icono ni orden).
+ */
+export interface ApiCategory {
+  id: number;
+  name: string;
+  color: string | null;
+  active: boolean;
+  headquarterId: number | null;
+  userId: number | null;
+}
+
+export interface CreateCategoryPayload {
+  name: string;
+  color?: string;
+}
+
+export interface UpdateCategoryPayload {
+  name?: string;
+  color?: string;
+  active?: boolean;
+}
+
+export interface ListCategoriesParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  active?: boolean;
+}
+
 // Órdenes (API /orders)
 export type ApiOrderStatus = 'pending' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
 
