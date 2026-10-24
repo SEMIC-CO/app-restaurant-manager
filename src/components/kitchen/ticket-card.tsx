@@ -27,18 +27,18 @@ function formatWaitTime(date: Date): string {
 
 function getOrderTypeIcon(type: OrderType): string {
   switch (type) {
-    case 'dine-in': return '🍽️';
-    case 'takeout': return '🛍️';
-    case 'delivery': return '🚗';
+    case 'para-llevar': return '🛍️';
+    case 'mesa': return '🍽️';
+    case 'domicilio': return '🚗';
     default: return '📦';
   }
 }
 
 function getOrderTypeLabel(type: OrderType, tableNumber?: number): string {
   switch (type) {
-    case 'dine-in': return tableNumber ? `Mesa ${tableNumber}` : 'Mesa';
-    case 'takeout': return 'Para Llevar';
-    case 'delivery': return 'Delivery';
+    case 'mesa': return tableNumber ? `Mesa ${tableNumber}` : 'Mesa';
+    case 'para-llevar': return 'Para Llevar';
+    case 'domicilio': return 'Domicilio';
     default: return '';
   }
 }

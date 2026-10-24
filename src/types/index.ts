@@ -53,9 +53,9 @@ export type OrderStatus =
   | 'cancelled';
 
 export type OrderType =
-  | 'dine-in'
-  | 'takeout'
-  | 'delivery';
+  | 'para-llevar'
+  | 'mesa'
+  | 'domicilio';
 
 // Payment Types
 export interface Payment {
@@ -333,6 +333,7 @@ export interface CreateOrderPayload {
   discount?: number;
   notes?: string;
   items: { productId: number; quantity: number }[];
+  orderType?: OrderType;
 }
 
 export interface UpdateOrderPayload {

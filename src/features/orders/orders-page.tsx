@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
 import { POSLayout } from '@/app/layout';
 import {
   CategoryTabs,
@@ -7,114 +6,124 @@ import {
   SearchInput,
   AppHeader,
 } from '@/components/common';
-import { ProductGrid, OrderTicket } from '@/components/pos';
-import { useProducts, useCategories, useFloorTables } from '@/hooks';
-import { useCartStore } from '@/store';
+import {
+  Button,
+  Label,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { Users, Table as TableIcon, Filter, BedDouble as BedDoubleIcon } from 'lucide-react';
-import type { Product, FloorTable, FloorTableStatus } from '@/types';
+import { TableIcon } from 'lucide-react';
+import type { OrderType } from '@/types';
+import { formatCurrency } from '@/utils';
+import { useOrdersStore } from '@/store';
+import { useCategories, useProducts } from '@/hooks';
 
-const statusStyles: Record<FloorTableStatus, { dot: string; badge: string; label: string }> = {
-  available: { dot: 'bg-emerald-500', badge: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30', label: 'Libre' },
-  occupied: { dot: 'bg-red-500', badge: 'bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30', label: 'Ocupada' },
+const orderTypeLabels: Record<OrderType, { label: string; className: string }> = {
+  'para-llevar': { label: 'Para Llevar', className: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20' },
+  mesa: { label: 'Mesa', className: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20' },
+  domicilio: { label: 'Domicilio', className: 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20' },
 };
 
 export function OrdersPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { categories } = useCategories();
+const { products } = useProducts('all');
 
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [table, setTable] = useState<FloorTable | null>(null);
-  const [isTableSelectorOpen, setIsTableSelectorOpen] = useState(false);
+  const { orders, addOrder } = useOrdersStore();
+
+  const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
+  const [selectedOrderType, setSelectedOrderType] = useState<OrderType | undefined>(undefined);
+  const [selectedTable, setSelectedTable] = useState<any>(null);
+  const [customerName, setCustomerName] = useState('');
+  const [selectedProducts, setSelectedProducts] = useState<Array<{ product: any; quantity: number }>>([]);
   const [selectorSearch, setSelectorSearch] = useState('');
 
-  const { categories } = useCategories();
-  const { products, loading } = useProducts(activeCategory);
-  const { tables: allTables, sections, loading: tablesLoading } = useFloorTables();
-
-  const addItem = useCartStore((state) => state.addItem);
-  const setTableInStore = useCartStore((state) => state.setTable);
-  const clearTable = useCartStore((state) => state.setTable);
-
-  const sectionNameMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    sections.forEach((s) => { map[String(s.id)] = s.name; });
-    return map;
-  }, [sections]);
-
-  const filteredTables = useMemo(() => {
-    if (!selectorSearch.trim()) return allTables;
-    const q = selectorSearch.toLowerCase();
-    return allTables.filter((t) =>
-      t.name.toLowerCase().includes(q) ||
-      t.sectionName.toLowerCase().includes(q)
-    );
-  }, [allTables, selectorSearch]);
-
-  const groupedTables = useMemo(() => {
-    const groups: Record<string, FloorTable[]> = {};
-    filteredTables.forEach((t) => {
-      const key = String(t.sectionId);
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(t);
-    });
-    return groups;
-  }, [filteredTables]);
-
-  const handleChooseTable = (nuevaMesa: FloorTable) => {
-    setTable(nuevaMesa);
-    setTableInStore(nuevaMesa);
-    setIsTableSelectorOpen(false);
-    setSelectorSearch('');
-  };
-
-  // Lee la mesa enviada desde TablesPage a través del state de React Router
-  useEffect(() => {
-    const incoming = (location.state as { mesa?: FloorTable } | null)?.mesa;
-    if (incoming) {
-      setTable(incoming);
-      setTableInStore(incoming);
-    } else {
-      // si llegamos sin state, usamos la que ya esté guardada en el store
-      setTable(useCartStore.getState().table);
-    }
-  }, [location.state, setTableInStore]);
-
-  const handleAddToCart = (product: Product) => {
-    addItem({
-      productId: product.id,
-      productName: product.name,
-      quantity: 1,
-      unitPrice: product.price,
-    });
-  };
-
-  const handleCharge = () => navigate('/checkout');
-  const handleSave = () => console.log('Saving order...', { table });
-  const handleClearTable = () => {
-    clearTable(null);
-    setTable(null);
-  };
-
-  const filteredProducts = searchQuery
-    ? products.filter(
+  const filteredProducts = useMemo(() => {
+    return products.filter(
       (p) =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.description.toLowerCase().includes(searchQuery.toLowerCase()),
-    )
-    : products;
+        p.name.toLowerCase().includes(selectorSearch.toLowerCase()) ||
+        p.description.toLowerCase().includes(selectorSearch.toLowerCase()),
+    );
+  }, [products, selectorSearch]);
+
+  const handleProductSelect = (product: any, quantity: number = 1) => {
+    setSelectedProducts(prev => {
+      const existing = prev.find(p => p.product.id === product.id);
+      if (existing) {
+        return prev.map(p =>
+          p.product.id === product.id
+            ? { ...p, quantity: p.quantity + quantity }
+            : p
+        );
+      }
+      return [...prev, { product, quantity }];
+    });
+  };
+
+  const handleRemoveProduct = (productId: string) => {
+    setSelectedProducts(prev => prev.filter(p => p.product.id !== productId));
+  };
+
+  const handleCreateOrder = async () => {
+    if (selectedProducts.length === 0) return;
+
+    const items = selectedProducts.map(p => ({
+      productId: p.product.id,
+      quantity: p.quantity,
+    }));
+
+    try {
+      const resp = await (await import('@/services')).orderService.create({
+        customerName: customerName || undefined,
+        tableNumber: selectedTable?.name || undefined,
+        idTable: selectedTable?.id || undefined,
+        items,
+        orderType: selectedOrderType,
+      });
+
+addOrder({
+        id: String(resp.data.id),
+        orderNumber: resp.data.orderNumber,
+        customerName: resp.data.customerName || undefined,
+        tableNumber: resp.data.tableNumber ? Number(resp.data.tableNumber) : undefined,
+        status: resp.data.status,
+        subtotal: resp.data.subtotal,
+        tax: 0,
+        total: resp.data.total,
+        type: selectedOrderType || 'para-llevar',
+        items: resp.data.items.map((item: any) => ({
+          id: item.id?.toString() || crypto.randomUUID(),
+          productId: item.productId?.toString() || '',
+          productName: item.productName || '',
+          quantity: item.quantity || 1,
+          unitPrice: item.unitPrice || 0,
+          subtotal: item.subtotal || 0,
+        })),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      setIsCreateOrderOpen(false);
+      setSelectedOrderType(undefined);
+      setSelectedTable(null);
+      setCustomerName('');
+      setSelectedProducts([]);
+    } catch (error: any) {
+      console.error('Error creating order:', error);
+    }
+  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-muted/30 relative">
@@ -126,179 +135,224 @@ export function OrdersPage() {
         <div className="flex-shrink-0">
           <AppHeader />
         </div>
+
         <POSLayout
           main={
             <div className="space-y-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <CategoryTabs
                   categories={categories}
-                  activeCategory={activeCategory}
-                  onCategoryChange={setActiveCategory}
+                  activeCategory="all"
+                  onCategoryChange={() => {}}
                 />
                 <div className="w-full sm:w-72 flex-shrink-0">
-                  <SearchInput value={searchQuery} onChange={setSearchQuery} />
+                  <SearchInput
+                    value={selectorSearch}
+                    onChange={(value) => setSelectorSearch(value)}
+                  />
                 </div>
               </div>
 
-              <ProductGrid
-                products={filteredProducts}
-                onAddToCart={handleAddToCart}
-                loading={loading}
-              />
-            </div>
-          }
-          sidebar={
-            <div className="flex h-full flex-col gap-3 min-h-0">
-              <Dialog open={isTableSelectorOpen} onOpenChange={setIsTableSelectorOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    variant={table ? 'outline' : 'default'}
-                    className={[
-                      'w-full gap-2 justify-center',
-                      table && 'border-primary/40 bg-primary/5 hover:bg-primary/10'
-                    ].join(' ')}
-                  >
-                    <TableIcon className="h-4 w-4" />
-                    {table ? (
-                      <>
-                        Cambiar · {table.name}
-                        <span className={`inline-block h-2 w-2 rounded-full ${statusStyles[table.floorStatus].dot}`} />
-                      </>
-                    ) : (
-                      'Asignar Mesa al Pedido'
-                    )}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[560px] w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0">
-                  <DialogHeader className="p-5 pb-3">
-                    <DialogTitle className="flex items-center gap-2 text-xl">
-                      <TableIcon className="h-5 w-5 text-primary" />
-                      Seleccionar Mesa
-                    </DialogTitle>
-                    <DialogDescription>
-                      Elige la mesa para asociar el pedido. Puedes buscar o filtrar por categoría.
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <div className="px-5 pb-2">
-                    <div className="relative">
-                      <Filter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        value={selectorSearch}
-                        onChange={(e) => setSelectorSearch(e.target.value)}
-                        placeholder="Buscar por nombre o sección..."
-                        className="pl-9"
-                      />
-                    </div>
-                  </div>
-
-                  <ScrollArea className="flex-1 px-5 pb-5 min-h-[300px] max-h-[50vh]">
-                    {tablesLoading ? (
-                      <div className="py-16 text-center text-muted-foreground text-sm">
-                        Cargando mesas...
-                      </div>
-                    ) : Object.keys(groupedTables).length === 0 ? (
-                      <div className="py-16 text-center text-muted-foreground text-sm">
-                        No se encontraron mesas con la búsqueda <span className="font-medium">{selectorSearch}</span>
-                      </div>
-                    ) : (
-                      <div className="space-y-5 pt-2">
-                        {Object.entries(groupedTables).map(([sectionId, mesas]) => (
-                          <div key={sectionId}>
-                            <div className="flex items-center justify-between mb-2">
-                              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                                {sectionNameMap[sectionId] ?? mesas[0]?.sectionName ?? sectionId}
-                                <span className="text-xs font-normal text-muted-foreground">
-                                  ({mesas.length})
-                                </span>
-                              </h4>
+              <div className="flex-1 min-h-0 overflow-hidden rounded-lg border bg-card">
+                {orders.length > 0 ? (
+                  <div className="p-4">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Mis Órdenes</h3>
+                    <div className="space-y-4">
+                      {orders.map((order) => (
+                        <div
+                          key={order.id}
+                          className="p-4 border rounded-lg bg-card transition-shadow hover:shadow-sm"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              <span className="text-lg font-bold text-primary">
+                                #{order.orderNumber.replace('ORD-', '')}
+                              </span>
+                              {order.type && (
+                                <Badge
+                                  variant="outline"
+                                  className="px-2 py-1 text-[10px] uppercase font-medium"
+                                >
+                                  {orderTypeLabels[order.type].label}
+                                </Badge>
+                              )}
                             </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                              {mesas.map((t) => {
-                                const isCurrent = table?.id === t.id;
-                                const style = statusStyles[t.floorStatus];
-                                return (
-                                  <button
-                                    key={t.id}
-                                    type="button"
-                                    onClick={() => handleChooseTable(t)}
-                                    className={[
-                                      'group relative flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all',
-                                      'hover:border-primary/50 hover:shadow-sm hover:-translate-y-0.5',
-                                      isCurrent
-                                        ? 'border-primary bg-primary/10 ring-2 ring-primary/30'
-                                        : 'border-border bg-card'
-                                    ].join(' ')}
-                                  >
-                                    <div className="flex items-start justify-between w-full">
-                                      <div className="flex items-center gap-2">
-                                        <div className="h-6 w-6 rounded bg-primary/15 text-primary flex items-center justify-center flex-shrink-0">
-                                          <BedDoubleIcon className="h-4 w-4" strokeWidth={2} />
-                                        </div>
-                                        <span className="font-semibold text-sm">
-                                          {t.name}
-                                        </span>
-                                      </div>
-                                      <span className={`h-2.5 w-2.5 rounded-full ${style.dot} ring-2 ring-white dark:ring-background`} />
-                                    </div>
-                                    <div className="flex items-center justify-between w-full gap-2">
-                                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                        <Users className="h-3 w-3" />
-                                        {t.cantPeople} pers.
-                                      </div>
-                                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0.5 border ${style.badge}`}>
-                                        {style.label}
-                                      </Badge>
-                                    </div>
-                                    {t.customerName && (
-                                      <p className="text-[10px] text-muted-foreground truncate w-full">
-                                        {t.customerName}
-                                      </p>
-                                    )}
-                                    {isCurrent && (
-                                      <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[10px] font-semibold px-2 py-0.5 rounded-full shadow">
-                                        Actual
-                                      </span>
-                                    )}
-                                  </button>
-                                );
-                              })}
+                            <div className="text-right">
+                              <div className="text-sm text-muted-foreground">
+                                {order.customerName || 'Sin cliente'}
+                              </div>
+                              <div className="text-lg font-bold text-primary">
+                                {formatCurrency(order.total)}
+                              </div>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </ScrollArea>
-
-                  {table && (
-                    <div className="flex items-center justify-between border-t p-4 bg-muted/40 rounded-b-lg">
-                      <div className="text-sm">
-                        <span className="text-muted-foreground">Asignada:</span>{' '}
-                        <span className="font-medium">
-                          {table.name}
-                        </span>
-                      </div>
-                      <Button variant="ghost" size="sm" onClick={handleClearTable}>
-                        Quitar asignación
-                      </Button>
+                          {order.tableNumber && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Mesa: {order.tableNumber}
+                            </p>
+                          )}
+                          {order.items.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {order.items.length} items
+                            </p>
+                          )}
+                          {order.status && (
+                            <Badge
+                              variant="outline"
+                              className="mt-2 text-[10px] px-2 py-0.5"
+                            >
+                              {order.status}
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  )}
-                </DialogContent>
-              </Dialog>
-
-              <div className="flex-1 min-h-0 overflow-hidden rounded-lg border bg-card">
-                <OrderTicket
-                  orderNumber="#ORD-3942"
-                  table={table}
-                  onCharge={handleCharge}
-                  onSave={handleSave}
-                  onClearTable={table ? handleClearTable : undefined}
-                />
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-muted-foreground">
+                    No hay órdenes aún
+                  </div>
+                )}
               </div>
             </div>
           }
+          sidebar={
+            <div className="h-full flex-col overflow-y-auto p-4 bg-card">
+              <Button
+                onClick={() => setIsCreateOrderOpen(true)}
+                className="w-full mb-4 bg-primary hover:bg-primary/90"
+              >
+                Crear Nueva Orden
+              </Button>
+            </div>
+          }
         />
+
+        {isCreateOrderOpen && (
+          <Dialog open={isCreateOrderOpen} onOpenChange={setIsCreateOrderOpen}>
+            <DialogContent className="sm:max-w-2xl w-full max-w-[560px]">
+              <DialogHeader className="p-4 pb-3">
+                <DialogTitle className="flex items-center gap-2 text-xl">
+                  <TableIcon className="h-5 w-5 text-primary" />
+                  <span>Crear Nueva Orden</span>
+                </DialogTitle>
+                <DialogDescription>
+                  Selecciona el tipo de orden, mesa y productos
+                </DialogDescription>
+              </DialogHeader>
+
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                handleCreateOrder();
+              }} className="p-4 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="block text-sm font-medium text-foreground mb-2">
+                      Tipo de Orden
+                    </Label>
+                    <Select
+                      onValueChange={(value: string) => {
+                        setSelectedOrderType(value as OrderType);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona un tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="para-llevar">
+                          Para Llevar
+                        </SelectItem>
+                        <SelectItem value="mesa">
+                          Mesa
+                        </SelectItem>
+                        <SelectItem value="domicilio">
+                          Domicilio
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="block text-sm font-medium text-foreground mb-2">
+                      Cliente (Opcional)
+                    </Label>
+                    <Input
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="Nombre del cliente"
+                      className="text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="block text-sm font-medium text-foreground mb-2">
+                    Productos
+                  </Label>
+                  <ScrollArea className="h-[200px] p-1 bg-card rounded border" >
+                    {filteredProducts.map((product) => (
+                      <div
+                        key={product.id}
+                        className="p-2 border-b border-muted/20 last:border-0 last:mb-1 flex items-center gap-2"
+                      >
+                        <span className="text-sm font-medium">
+                          {product.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          ${product.price}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => handleProductSelect(product, 1)}
+                        >
+                          +
+                        </Button>
+                      </div>
+                    ))}
+                  </ScrollArea>
+                </div>
+
+                {selectedProducts.length > 0 && (
+                  <div className="mt-2 p-2 bg-muted/30 rounded">
+                    <p className="text-sm font-medium">Seleccionados: {selectedProducts.length}</p>
+                    {selectedProducts.map((sp, idx) => (
+                      <div key={idx} className="text-xs mt-1">
+                        {sp.product.name}: {sp.quantity}{' '}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-4 w-4"
+                          onClick={() => handleRemoveProduct(sp.product.id)}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div>
+                  <Button
+                    type="submit"
+                    disabled={selectedProducts.length === 0}
+                    className="bg-primary hover:bg-primary/90 w-full"
+                  >
+                    Guardar Orden
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsCreateOrderOpen(false)}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </div>
   );

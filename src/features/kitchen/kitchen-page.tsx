@@ -34,7 +34,7 @@ const mockOrders: Order[] = [
     tax: 0.69,
     total: 7.59,
     status: "preparing",
-    type: "dine-in",
+    type: "para-llevar",
     tableNumber: 5,
     createdAt: new Date(Date.now() - 18 * 60000), // 18 min ago
     updatedAt: new Date(),
@@ -64,7 +64,7 @@ const mockOrders: Order[] = [
     tax: 1.1,
     total: 12.1,
     status: "preparing",
-    type: "takeout",
+    type: "para-llevar",
     createdAt: new Date(Date.now() - 12 * 60000), // 12 min ago
     updatedAt: new Date(),
   },
@@ -101,7 +101,7 @@ const mockOrders: Order[] = [
     tax: 0.42,
     total: 4.62,
     status: "preparing",
-    type: "dine-in",
+    type: "para-llevar",
     tableNumber: 2,
     createdAt: new Date(Date.now() - 2 * 60000), // 2 min ago
     updatedAt: new Date(),
@@ -131,7 +131,7 @@ const mockOrders: Order[] = [
     tax: 1.8,
     total: 19.8,
     status: "preparing",
-    type: "delivery",
+    type: "domicilio",
     createdAt: new Date(Date.now() - 45000), // 45 sec ago
     updatedAt: new Date(),
   },
@@ -160,7 +160,7 @@ const mockOrders: Order[] = [
     tax: 1.2,
     total: 13.2,
     status: "preparing",
-    type: "dine-in",
+    type: "para-llevar",
     tableNumber: 10,
     createdAt: new Date(Date.now() - 30000), // 30 sec ago
     updatedAt: new Date(),
@@ -176,9 +176,9 @@ const flavorCounts = [
 
 const ticketFilters = [
   { type: "all" as const, label: "Todos", count: 12 },
-  { type: "takeout" as const, label: "Para Llevar" },
-  { type: "dine-in" as const, label: "Mesa" },
-  { type: "delivery" as const, label: "Delivery" },
+  { type: "para-llevar" as const, label: "Para Llevar" },
+  { type: "mesa" as const, label: "Mesa" },
+  { type: "domicilio" as const, label: "Domicilio" },
 ];
 
 /**

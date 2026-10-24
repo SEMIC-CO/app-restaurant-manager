@@ -9,6 +9,13 @@ interface TablesGridProps {
   loading?: boolean;
 }
 
+/**
+ * Cuadrícula con ancho de celda ~200px (12.5rem). En pantallas donde no caben
+ * 200px por columna, `min(100%, 12.5rem)` reduce el ancho para evitar overflow.
+ */
+const GRID_CLASS =
+  'grid grid-cols-[repeat(auto-fill,minmax(min(100%,12.5rem),12.5rem))] gap-4';
+
 const STATUS_CONFIG: Record<FloorTableStatus, { label: string; className: string; border: string; dot: string }> = {
   available: {
     label: 'Libre',
@@ -37,7 +44,7 @@ const STATUS_CONFIG: Record<FloorTableStatus, { label: string; className: string
 export function TablesGrid({ tables, onSelectTable, loading }: TablesGridProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+      <div className={GRID_CLASS}>
         {Array.from({ length: 12 }).map((_, i) => (
           <div
             key={i}
@@ -60,7 +67,7 @@ export function TablesGrid({ tables, onSelectTable, loading }: TablesGridProps) 
   }
 
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+    <div className={GRID_CLASS}>
       {tables.map((table) => {
         const config = STATUS_CONFIG[table.floorStatus];
         const isClickable = Boolean(onSelectTable);
