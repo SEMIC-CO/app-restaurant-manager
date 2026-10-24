@@ -21,6 +21,7 @@ import {
   TablesListPage,
   AlertDemoPage,
   OrdersPage,
+  OrderCreatePage,
   TablesPage,
 } from '@/features';
 import { Toaster } from '@/components/ui';
@@ -46,6 +47,7 @@ function App() {
           <Route path="/" element={<SettingsPage />} />
           <Route path="/mesas" element={<TablesPage />} />
           <Route path="/pedidos" element={<OrdersPage />} />
+          <Route path="/pedidos/nuevo" element={<OrderCreatePage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/cocina" element={<KitchenPage />} />
           <Route path="/entregas" element={<DeliveryPage />} />

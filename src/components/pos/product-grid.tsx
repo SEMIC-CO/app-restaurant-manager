@@ -1,16 +1,23 @@
+import type { ReactNode } from 'react';
 import { ProductCard } from './product-card';
 import type { Product } from '@/types';
 
 interface ProductGridProps {
   products: Product[];
-  onAddToCart: (product: Product) => void;
+  /**
+   * Renderizado propio por producto (p.ej. Pedidos). Cuando se provee,
+   * reemplaza al ProductCard por defecto.
+   */
+  children?: (product: Product) => ReactNode;
+  /** Callback del POS (caja): agrega el producto al carrito. */
+  onAddToCart?: (product: Product) => void;
   loading?: boolean;
 }
 
 /**
- * Responsive grid of product cards
+ * Responsive grid of product cards (POS / Caja / Pedidos).
  */
-export function ProductGrid({ products, onAddToCart, loading }: ProductGridProps) {
+export function ProductGrid({ products, children, onAddToCart, loading }: ProductGridProps) {
   if (loading) {
     return (
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
@@ -37,13 +44,17 @@ export function ProductGrid({ products, onAddToCart, loading }: ProductGridProps
 
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
-      {products.map((product) => (
-        <ProductCard
-          key={product.id}
-          product={product}
-          onAddToCart={onAddToCart}
-        />
-      ))}
+      {products.map((product) =>
+        children ? (
+          <div key={product.id}>{children(product)}</div>
+        ) : (
+          <ProductCard
+            key={product.id}
+            product={product}
+            onAddToCart={onAddToCart ?? (() => {})}
+          />
+        )
+      )}
     </div>
   );
 }

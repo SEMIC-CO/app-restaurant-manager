@@ -30,7 +30,7 @@ export function TablesPage() {
       : allTables.filter((table) => String(table.sectionId) === activeSection);
 
   const handleSelectTable = (table: FloorTable) => {
-    navigate('/pedidos', { state: { mesa: table } });
+    navigate('/pedidos/nuevo', { state: { mesa: table } });
   };
 
   const availableCount = tables.filter((t) => t.floorStatus === 'available').length;
