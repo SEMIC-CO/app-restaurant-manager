@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   BillingSidebar,
@@ -7,81 +7,171 @@ import {
   type Invoice,
 } from "@/components/billing";
 import { ConfigSidebar, AppHeader } from "@/components/common";
+import { toast } from "@/hooks";
+import { invoiceService } from "@/services";
+import type { ApiInvoice, ApiResponse } from "@/types";
 
-// Mock data
-const mockInvoices: Invoice[] = [
-  {
-    id: "1",
-    invoiceNumber: "0001-00002384",
-    date: "25 Mayo, 2024",
-    time: "14:50",
-    customerName: "Juan Pérez",
-    status: "paid",
-    total: 18450,
-  },
-  {
-    id: "2",
-    invoiceNumber: "0001-00002383",
-    date: "25 Mayo, 2024",
-    time: "14:15",
-    customerName: "María García",
-    status: "pending",
-    total: 12200,
-  },
-  {
-    id: "3",
-    invoiceNumber: "0001-00002382",
-    date: "25 Mayo, 2024",
-    time: "13:40",
-    customerName: "Consumidor Final",
-    status: "paid",
-    total: 5650,
-  },
-  {
-    id: "4",
-    invoiceNumber: "0001-00002381",
-    date: "25 Mayo, 2024",
-    time: "13:05",
-    customerName: "Ricardo Gomez",
-    status: "paid",
-    total: 24900,
-  },
-  {
-    id: "5",
-    invoiceNumber: "0001-00002380",
-    date: "25 Mayo, 2024",
-    time: "12:30",
-    customerName: "Ana Lopez",
-    status: "paid",
-    total: 8120,
-  },
-];
+/** Facturas por petición y tope de páginas del histórico. */
+const PAGE_LIMIT = 100;
+const MAX_PAGES = 10;
+
+type PeriodId = "today" | "week" | "month" | "custom";
+
+/** Rótulo del total del footer según el período activo. */
+const PERIOD_LABELS: Record<PeriodId, string> = {
+  today: "Total Facturado Hoy",
+  week: "Total Facturado Esta Semana",
+  month: "Total Facturado Este Mes",
+  custom: "Total Facturado (Rango)",
+};
+
+/** `AAAA-MM-DD` en horario local (no el de UTC). */
+function toISODate(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+/** Rango de fechas del período activo (`custom` = fechas elegidas, vacío = todo). */
+function getPeriodRange(
+  period: PeriodId,
+  dateFrom: string,
+  dateTo: string,
+): { dateFrom?: string; dateTo?: string } {
+  const now = new Date();
+  switch (period) {
+    case "today": {
+      const today = toISODate(now);
+      return { dateFrom: today, dateTo: today };
+    }
+    case "week": {
+      const from = new Date(now);
+      from.setDate(from.getDate() - 6);
+      return { dateFrom: toISODate(from), dateTo: toISODate(now) };
+    }
+    case "month": {
+      const from = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { dateFrom: toISODate(from), dateTo: toISODate(now) };
+    }
+    default:
+      return {
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+      };
+  }
+}
+
+function apiErrorMessage(resp: ApiResponse<unknown>, fallback: string): string {
+  const data: unknown = resp.data;
+  if (Array.isArray(data)) return data.join(", ");
+  return resp.msg || fallback;
+}
+
+/** Factura del backend → modelo de la tabla del histórico. */
+function toInvoice(api: ApiInvoice): Invoice {
+  const date = new Date(api.invoiceDatetime);
+  return {
+    id: String(api.id),
+    invoiceNumber: api.invoiceNumber,
+    date: date.toLocaleDateString("es-ES", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }),
+    time: date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }),
+    customerName: api.customerName?.trim() || "Consumidor Final",
+    customerEmail: api.customerEmail ?? undefined,
+    status: api.status,
+    total: Number(api.total),
+    tip: Number(api.voluntaryTip ?? 0),
+  };
+}
 
 /**
- * Billing page - Estructura row única (sin doble wrap):
+ * Billing page — histórico de facturas **reales** de la empresa
+ * (`GET /invoices`) con búsqueda, filtro por período (hoy/semana/mes/rango)
+ * y totales calculados sobre los datos del backend.
+ *
+ * Estructura row única (sin doble wrap):
  *   [Aside Nav (lg+) 220px] | [col AppHeader | row (Aside métodos pago + main+footer)]
  */
 export function BillingPage() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activePeriod, setActivePeriod] = useState("today");
+  const [activePeriod, setActivePeriod] = useState<PeriodId>("today");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const range = useMemo(
+    () => getPeriodRange(activePeriod, dateFrom, dateTo),
+    [activePeriod, dateFrom, dateTo],
+  );
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const collected: ApiInvoice[] = [];
+      for (let page = 1; page <= MAX_PAGES; page += 1) {
+        const resp = await invoiceService.list({
+          page,
+          limit: PAGE_LIMIT,
+          ...range,
+        });
+        if (resp.code !== 200) {
+          toast({
+            variant: "warning",
+            title: "❌ Error al cargar facturas",
+            description: apiErrorMessage(resp, "No se pudieron cargar las facturas."),
+          });
+          return;
+        }
+        collected.push(...resp.data.items);
+        if (page >= resp.data.totalPages) break;
+      }
+      setInvoices(collected.map(toInvoice));
+    } catch {
+      toast({
+        variant: "warning",
+        title: "❌ Error al cargar facturas",
+        description: "No se pudo conectar con el servidor.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [range]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const handleViewDetails = (invoiceId: string) => {
     navigate(`/facturacion/${invoiceId}`);
   };
 
   const handleExportExcel = () => console.log("Exporting to Excel...");
-  const handlePrintReport = () => console.log("Printing report...");
+  const handlePrintReport = () => window.print();
 
-  const filteredInvoices = searchQuery
-    ? mockInvoices.filter(
+  const filteredInvoices = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase().replace(/^#/, "");
+    if (!query) return invoices;
+    return invoices.filter(
       (inv) =>
-        inv.invoiceNumber.includes(searchQuery) ||
-        inv.customerName.toLowerCase().includes(searchQuery.toLowerCase()),
-    )
-    : mockInvoices;
+        inv.invoiceNumber.toLowerCase().includes(query) ||
+        inv.customerName.toLowerCase().includes(query) ||
+        (inv.customerEmail ?? "").toLowerCase().includes(query),
+    );
+  }, [invoices, searchQuery]);
 
-  const totalAmount = filteredInvoices.reduce((sum, inv) => sum + inv.total, 0);
+  // El total facturado excluye las facturas canceladas
+  const totalAmount = useMemo(
+    () =>
+      filteredInvoices
+        .filter((inv) => inv.status !== "cancelled")
+        .reduce((sum, inv) => sum + inv.total, 0),
+    [filteredInvoices],
+  );
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-muted/30 relative">
@@ -98,13 +188,17 @@ export function BillingPage() {
 
         {/* Inner content row: (BillingSidebar métodos + main/column) */}
         <div className="flex flex-1 overflow-hidden min-h-0">
-          {/* 2a) Billing sidebar - métodos de pago (lg+) */}
+          {/* 2a) Billing sidebar - búsqueda + períodos (lg+) */}
           <aside className="hidden w-[240px] flex-shrink-0 lg:block h-full overflow-y-auto">
             <BillingSidebar
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
               activePeriod={activePeriod}
-              onPeriodChange={setActivePeriod}
+              onPeriodChange={(period) => setActivePeriod(period as PeriodId)}
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              onDateFromChange={setDateFrom}
+              onDateToChange={setDateTo}
             />
           </aside>
 
@@ -122,10 +216,30 @@ export function BillingPage() {
                   </div>
                 </div>
 
-                <InvoiceTable
-                  invoices={filteredInvoices}
-                  onViewDetails={handleViewDetails}
-                />
+                {loading ? (
+                  <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-card py-16 text-center">
+                    <span className="text-4xl">⏳</span>
+                    <p className="mt-4 font-medium">Cargando facturas…</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Consultando el histórico de la empresa
+                    </p>
+                  </div>
+                ) : filteredInvoices.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-card py-16 text-center">
+                    <span className="text-4xl">🧾</span>
+                    <p className="mt-4 font-medium">No hay facturas</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {invoices.length === 0
+                        ? "Aún no se ha facturado ningún pedido en este período."
+                        : "No hay facturas con esa búsqueda."}
+                    </p>
+                  </div>
+                ) : (
+                  <InvoiceTable
+                    invoices={filteredInvoices}
+                    onViewDetails={handleViewDetails}
+                  />
+                )}
               </div>
             </main>
 
@@ -133,6 +247,7 @@ export function BillingPage() {
               <BillingFooter
                 totalAmount={totalAmount}
                 invoiceCount={filteredInvoices.length}
+                totalLabel={PERIOD_LABELS[activePeriod]}
                 onExportExcel={handleExportExcel}
                 onPrintReport={handlePrintReport}
               />

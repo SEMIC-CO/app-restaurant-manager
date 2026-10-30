@@ -8,7 +8,8 @@ interface BranchInfo {
 interface InvoiceStatusBarProps {
   isOnline: boolean;
   lastSync: string;
-  branch: BranchInfo;
+  /** Local/sede; opcional: la API aún no expone estos datos. */
+  branch?: BranchInfo;
 }
 
 /**
@@ -27,17 +28,19 @@ export function InvoiceStatusBar({ isOnline, lastSync, branch }: InvoiceStatusBa
         <span className="text-slate-400">Última sincronización: {lastSync}</span>
       </div>
 
-      {/* Right: Branch info */}
-      <div className="flex items-center gap-4 text-sm">
-        <div className="rounded bg-slate-700 px-3 py-1">
-          <p className="text-xs text-slate-400">LOCAL DE ORIGEN</p>
-          <div className="flex items-center gap-1">
-            <MapPin className="h-3 w-3" />
-            <span className="font-medium">{branch.name}</span>
+      {/* Right: Branch info (solo si hay datos de la sede) */}
+      {branch && (
+        <div className="flex items-center gap-4 text-sm">
+          <div className="rounded bg-slate-700 px-3 py-1">
+            <p className="text-xs text-slate-400">LOCAL DE ORIGEN</p>
+            <div className="flex items-center gap-1">
+              <MapPin className="h-3 w-3" />
+              <span className="font-medium">{branch.name}</span>
+            </div>
           </div>
+          <span className="text-slate-400">Soporte Técnico: {branch.supportPhone}</span>
         </div>
-        <span className="text-slate-400">Soporte Técnico: {branch.supportPhone}</span>
-      </div>
+      )}
     </div>
   );
 }

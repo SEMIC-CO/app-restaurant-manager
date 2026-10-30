@@ -13,6 +13,11 @@ interface BillingSidebarProps {
   onSearchChange: (query: string) => void;
   activePeriod: string;
   onPeriodChange: (periodId: string) => void;
+  /** Rango del filtro "Personalizado" (AAAA-MM-DD, vacío = sin límite). */
+  dateFrom?: string;
+  dateTo?: string;
+  onDateFromChange?: (value: string) => void;
+  onDateToChange?: (value: string) => void;
 }
 
 const periodFilters: PeriodFilter[] = [
@@ -29,7 +34,11 @@ export function BillingSidebar({
   searchQuery, 
   onSearchChange, 
   activePeriod, 
-  onPeriodChange 
+  onPeriodChange,
+  dateFrom = '',
+  dateTo = '',
+  onDateFromChange,
+  onDateToChange,
 }: BillingSidebarProps) {
   return (
     <div className="flex h-full flex-col bg-primary text-primary-foreground">
@@ -76,6 +85,33 @@ export function BillingSidebar({
             </button>
           ))}
         </div>
+
+        {/* Rango de fechas del filtro "Personalizado" */}
+        {activePeriod === 'custom' && (
+          <div className="mt-4 space-y-2 rounded-lg bg-white/10 p-3">
+            <p className="text-xs font-medium uppercase opacity-80">
+              Rango de fechas
+            </p>
+            <label className="block text-xs opacity-80">
+              Desde
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => onDateFromChange?.(e.target.value)}
+                className="mt-1 h-9 w-full border-0 bg-white/20 text-sm text-primary-foreground [color-scheme:dark] focus:bg-white/30"
+              />
+            </label>
+            <label className="block text-xs opacity-80">
+              Hasta
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => onDateToChange?.(e.target.value)}
+                className="mt-1 h-9 w-full border-0 bg-white/20 text-sm text-primary-foreground [color-scheme:dark] focus:bg-white/30"
+              />
+            </label>
+          </div>
+        )}
       </div>
 
       {/* User info at bottom */}

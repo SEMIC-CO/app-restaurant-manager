@@ -11,6 +11,8 @@ interface PaymentSummary {
   total: number;
   currency: string;
   paymentMethod: string;
+  /** Propina voluntaria: no forma parte de la base imponible. */
+  voluntaryTip?: number;
 }
 
 interface PaymentSummaryCardProps {
@@ -50,6 +52,12 @@ export function PaymentSummaryCard({
           <span>Descuento ({payment.discountRate}%)</span>
           <span>-{formatCurrency(payment.discountAmount)}</span>
         </div>
+        {Boolean(payment.voluntaryTip) && (
+          <div className="flex justify-between text-green-600">
+            <span>Propina (voluntaria)</span>
+            <span>{formatCurrency(payment.voluntaryTip ?? 0)}</span>
+          </div>
+        )}
       </div>
 
       {/* Total */}
@@ -90,14 +98,16 @@ export function PaymentSummaryCard({
           <Mail className="h-4 w-4" />
           Enviar por Correo
         </Button>
-        <Button 
-          variant="ghost" 
-          className="w-full justify-center gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
-          onClick={onCancelOrder}
-        >
-          <XCircle className="h-4 w-4" />
-          Anular Pedido
-        </Button>
+        {onCancelOrder && (
+          <Button 
+            variant="ghost" 
+            className="w-full justify-center gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={onCancelOrder}
+          >
+            <XCircle className="h-4 w-4" />
+            Anular Factura
+          </Button>
+        )}
       </div>
     </Card>
   );

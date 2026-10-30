@@ -5,6 +5,8 @@ import { formatCurrency } from '@/utils';
 interface BillingFooterProps {
   totalAmount: number;
   invoiceCount: number;
+  /** Rótulo del monto acumulado (según el período activo). */
+  totalLabel?: string;
   onExportExcel: () => void;
   onPrintReport: () => void;
 }
@@ -14,7 +16,8 @@ interface BillingFooterProps {
  */
 export function BillingFooter({ 
   totalAmount, 
-  invoiceCount, 
+  invoiceCount,
+  totalLabel = 'Total Facturado Hoy',
   onExportExcel, 
   onPrintReport 
 }: BillingFooterProps) {
@@ -24,7 +27,7 @@ export function BillingFooter({
       <div className="flex items-center gap-8">
         <div>
           <p className="text-xs font-medium uppercase text-muted-foreground">
-            Total Facturado Hoy
+            {totalLabel}
           </p>
           <p className="text-2xl font-bold text-primary">
             {formatCurrency(totalAmount)}
