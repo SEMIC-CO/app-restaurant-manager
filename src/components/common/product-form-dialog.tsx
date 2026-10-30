@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
@@ -11,6 +11,7 @@ import {
   DialogFooter,
   Button,
   Input,
+  MoneyInput,
   Label,
   Textarea,
   Select,
@@ -20,29 +21,45 @@ import {
   SelectItem,
   Checkbox,
 } from '@/components/ui';
+import { toast, useImageUpload, type PreparedImage } from '@/hooks';
+import { formatFileSize, resolveStorageUrl } from '@/utils';
+import type { ApiProduct } from '@/types';
 
 const productSchema = z.object({
   name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
-  description: z.string().min(10, 'La descripción debe tener al menos 10 caracteres'),
+  description: z
+    .string()
+    .min(10, 'La descripción debe tener al menos 10 caracteres'),
   price: z.number().min(0, 'El precio debe ser mayor a 0'),
-  categoryId: z.string().min(1, 'Selecciona una categoría'),
+  cost: z.number().min(0, 'El costo debe ser mayor a 0'),
+  categoryId: z.number().min(1, 'Selecciona una categoría'),
   isAvailable: z.boolean(),
-  stock: z.number().min(0, 'El stock debe ser mayor o igual a 0').optional(),
 });
 
-type ProductFormData = z.infer<typeof productSchema>;
+export type ProductFormData = z.infer<typeof productSchema>;
+
+/** Lo que el formulario entrega al caller: datos + imagen elegida (si la hay). */
+export interface ProductFormSubmit {
+  values: ProductFormData;
+  /** Imagen ya pre-comprimida por `useImageUpload` (WebP ≤1MB). */
+  imageFile: File | null;
+}
 
 interface ProductFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  product?: ProductFormData & { id: string };
-  categories?: { id: string; name: string }[];
-  onSubmit: (data: ProductFormData) => Promise<void>;
+  /** Producto en edición; sin él, el diálogo opera en modo creación. */
+  product?: ApiProduct | null;
+  categories?: { id: number; name: string }[];
+  onSubmit: (submit: ProductFormSubmit) => Promise<void>;
 }
 
 /**
- * Product form dialog with react-hook-form + zod validation
- * Example implementation for adding/editing products
+ * Formulario de producto (react-hook-form + zod + shadcn/ui).
+ *
+ * En modo edición permite además reemplazar la imagen: se pre-comprime en el
+ * navegador (`useImageUpload`) y el caller la sube con
+ * `productService.uploadImage()` después de actualizar los datos.
  */
 export function ProductFormDialog({
   open,
@@ -51,50 +68,104 @@ export function ProductFormDialog({
   categories = [],
   onSubmit,
 }: ProductFormDialogProps) {
+  const [preparedImage, setPreparedImage] =
+    React.useState<PreparedImage | null>(null);
+  const { prepare } = useImageUpload();
+
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
     setValue,
     watch,
     reset,
   } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
-    defaultValues: product || {
-      name: '',
-      description: '',
-      price: 0 as number,
-      categoryId: '',
-      isAvailable: true,
-      stock: 0 as number | undefined,
-    },
+    defaultValues: product
+      ? {
+          name: product.name,
+          description: product.description ?? '',
+          price: product.price,
+          cost: product.cost,
+          categoryId: product.categoryId,
+          isAvailable: product.available ?? true,
+        }
+      : {
+          name: '',
+          description: '',
+          price: 0,
+          cost: 0,
+          categoryId: 0,
+          isAvailable: true,
+        },
   });
 
   const isAvailable = watch('isAvailable');
+  const selectedCategoryId = watch('categoryId');
 
   React.useEffect(() => {
     if (open && product) {
-      reset(product);
+      reset({
+        name: product.name,
+        description: product.description ?? '',
+        price: product.price,
+        cost: product.cost,
+        categoryId: product.categoryId,
+        isAvailable: product.available ?? true,
+      });
     } else if (!open) {
       reset({
         name: '',
         description: '',
-        price: 0 as number,
-        categoryId: '',
+        price: 0,
+        cost: 0,
+        categoryId: 0,
         isAvailable: true,
-        stock: undefined,
       });
+      setPreparedImage(null);
     }
   }, [open, product, reset]);
 
-  const handleFormSubmit = async (data: ProductFormData) => {
+  // El preview usa un Object URL: se libera al cambiar de imagen o al cerrar
+  React.useEffect(() => {
+    return () => {
+      if (preparedImage) URL.revokeObjectURL(preparedImage.previewUrl);
+    };
+  }, [preparedImage]);
+
+  const handleSelectImage = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const prepared = await prepare(file);
+    if (!prepared) {
+      toast({
+        variant: 'warning',
+        title: '❌ Imagen no válida',
+        description: 'No se pudo procesar la imagen. Intenta con otra.',
+      });
+      return;
+    }
+
+    setPreparedImage(prepared);
+    event.target.value = '';
+  };
+
+  const handleFormSubmit = async (values: ProductFormData) => {
     try {
-      await onSubmit(data);
+      await onSubmit({ values, imageFile: preparedImage?.file ?? null });
       onOpenChange(false);
     } catch (error) {
-      console.error('Error submitting product:', error);
+      // El caller lanza para mantener el diálogo abierto
+      console.error('Error guardando el producto:', error);
     }
   };
+
+  const currentImageUrl = product ? resolveStorageUrl(product.imageUrl) : null;
+  const previewUrl = preparedImage?.previewUrl ?? currentImageUrl;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -111,9 +182,9 @@ export function ProductFormDialog({
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
           {/* Product Name */}
           <div className="space-y-2">
-            <Label htmlFor="name">Nombre del Producto *</Label>
+            <Label htmlFor="product-name">Nombre del Producto *</Label>
             <Input
-              id="name"
+              id="product-name"
               placeholder="Empanada de Carne"
               {...register('name')}
             />
@@ -124,9 +195,9 @@ export function ProductFormDialog({
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description">Descripción *</Label>
+            <Label htmlFor="product-description">Descripción *</Label>
             <Textarea
-              id="description"
+              id="product-description"
               placeholder="Describe el producto..."
               {...register('description')}
               rows={3}
@@ -136,16 +207,21 @@ export function ProductFormDialog({
             )}
           </div>
 
-          {/* Price and Category */}
-          <div className="grid gap-4 sm:grid-cols-2">
+          {/* Price, Cost and Category */}
+          <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="price">Precio *</Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                {...register('price', { valueAsNumber: true })}
+              <Label htmlFor="product-price">Precio *</Label>
+              <Controller
+                control={control}
+                name="price"
+                render={({ field }) => (
+                  <MoneyInput
+                    id="product-price"
+                    placeholder="0.00"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  />
+                )}
               />
               {errors.price && (
                 <p className="text-xs text-red-500">{errors.price.message}</p>
@@ -153,17 +229,38 @@ export function ProductFormDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="categoryId">Categoría *</Label>
+              <Label htmlFor="product-cost">Costo *</Label>
+              <Controller
+                control={control}
+                name="cost"
+                render={({ field }) => (
+                  <MoneyInput
+                    id="product-cost"
+                    placeholder="0.00"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  />
+                )}
+              />
+              {errors.cost && (
+                <p className="text-xs text-red-500">{errors.cost.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="product-category">Categoría *</Label>
               <Select
-                value={watch('categoryId')}
-                onValueChange={(value) => setValue('categoryId', value)}
+                value={selectedCategoryId ? String(selectedCategoryId) : ''}
+                onValueChange={(value) => setValue('categoryId', Number(value), {
+                  shouldValidate: true,
+                })}
               >
-                <SelectTrigger>
+                <SelectTrigger id="product-category">
                   <SelectValue placeholder="Selecciona una categoría" />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
+                    <SelectItem key={category.id} value={String(category.id)}>
                       {category.name}
                     </SelectItem>
                   ))}
@@ -175,28 +272,59 @@ export function ProductFormDialog({
             </div>
           </div>
 
-          {/* Stock */}
-          <div className="space-y-2">
-            <Label htmlFor="stock">Stock Inicial (Opcional)</Label>
-            <Input
-              id="stock"
-              type="number"
-              placeholder="0"
-              {...register('stock', { valueAsNumber: true })}
-            />
-            {errors.stock && (
-              <p className="text-xs text-red-500">{errors.stock.message}</p>
-            )}
-          </div>
+          {/* Image (sustitución en modo edición) */}
+          {product && (
+            <div className="space-y-2">
+              <Label>Imagen del Producto</Label>
+              <div className="flex items-center gap-4 rounded-md border border-dashed p-4">
+                {previewUrl ? (
+                  <img
+                    src={previewUrl}
+                    alt={product.name}
+                    className="h-16 w-16 rounded object-cover"
+                  />
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded bg-muted text-2xl">
+                    🥟
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <label
+                    htmlFor="product-image"
+                    className="cursor-pointer text-sm font-medium text-primary hover:underline"
+                  >
+                    Cambiar imagen
+                  </label>
+                  <input
+                    id="product-image"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={(event) => void handleSelectImage(event)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    PNG, JPG o WEBP hasta 5MB · se comprime a WebP antes de subir
+                  </p>
+                  {preparedImage && (
+                    <p className="text-xs text-emerald-600">
+                      ✓ Nueva imagen:{' '}
+                      {formatFileSize(preparedImage.originalSize)} →{' '}
+                      {formatFileSize(preparedImage.compressedSize)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Availability */}
           <div className="flex items-center gap-2">
             <Checkbox
-              id="isAvailable"
+              id="product-available"
               checked={isAvailable}
               onCheckedChange={(checked: boolean) => setValue('isAvailable', checked)}
             />
-            <Label htmlFor="isAvailable" className="font-normal cursor-pointer">
+            <Label htmlFor="product-available" className="font-normal cursor-pointer">
               Producto disponible para la venta
             </Label>
           </div>

@@ -5,7 +5,7 @@ export { DeliveryPage } from './delivery';
 export { AnalyticsPage } from './analytics';
 export { BillingPage, InvoiceDetailPage } from './billing';
 export { ProfilePage } from './profile';
-export { ProductCreatePage } from './products';
+export { ProductFormPage } from './products';
 export { SettingsPage, ProductsListPage, CategoriesListPage, UsersListPage, UserCreatePage, TablesListPage, EmployeesListPage, EmployeePayrollPage } from './settings';
 export { OrdersPage, OrderCreatePage, TablesPage } from './orders';
 export { AlertDemoPage } from './demo';

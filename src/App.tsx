@@ -12,7 +12,7 @@ import {
   BillingPage,
   InvoiceDetailPage,
   ProfilePage,
-  ProductCreatePage,
+  ProductFormPage,
   SettingsPage,
   ProductsListPage,
   CategoriesListPage,
@@ -50,6 +50,10 @@ function App() {
           <Route path="/mesas" element={<TablesPage />} />
           <Route path="/pedidos" element={<OrdersPage />} />
           <Route path="/pedidos/nuevo" element={<OrderCreatePage />} />
+          <Route
+            path="/pedidos/:orderId/editar"
+            element={<OrderCreatePage />}
+          />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/cocina" element={<KitchenPage />} />
           <Route path="/entregas" element={<DeliveryPage />} />
@@ -58,7 +62,11 @@ function App() {
           <Route path="/facturacion/:invoiceId" element={<InvoiceDetailPage />} />
           <Route path="/reportes" element={<AnalyticsPage />} />
           <Route path="/perfil" element={<ProfilePage />} />
-          <Route path="/productos/nuevo" element={<ProductCreatePage />} />
+          <Route path="/productos/nuevo" element={<ProductFormPage />} />
+          <Route
+            path="/productos/:productId/editar"
+            element={<ProductFormPage />}
+          />
 
           {/* Configuración */}
           <Route path="/configuracion/productos" element={<ProductsListPage />} />

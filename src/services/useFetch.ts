@@ -11,11 +11,14 @@ async function request(path: string, options: RequestInit, token: string | null)
     // Fastify rechaza un body vacío si el content-type es application/json:
     // el header solo se manda cuando la petición lleva body (p.ej. /auth/refresh).
     const hasBody = options.body !== undefined && options.body !== null;
+    // Con FormData el navegador debe generar el boundary
+    // (`multipart/form-data; boundary=...`); declararlo a mano lo rompe.
+    const isFormData = options.body instanceof FormData;
 
     const response = await fetch(buildUrl(path), {
         ...options,
         headers: {
-            ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+            ...(hasBody && !isFormData ? { 'Content-Type': 'application/json' } : {}),
             'Accept': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
             ...(options?.headers || {}),

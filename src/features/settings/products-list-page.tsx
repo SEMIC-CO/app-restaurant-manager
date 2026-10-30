@@ -1,69 +1,173 @@
-import { useState } from 'react';
+import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ConfigLayout } from '@/app/layout';
 import { ConfigSidebar } from '@/components/common';
+import { Card, CardContent, Button, Input, Badge, Switch } from '@/components/ui';
+import { toast } from '@/hooks';
+import { categoryService, productService } from '@/services';
+import { formatCurrency, resolveStorageUrl } from '@/utils';
+import type { ApiCategory, ApiProduct, ApiResponse } from '@/types';
 import {
-  Card,
-  CardContent,
-  Button,
-  Input,
-  Badge,
-  Switch,
-} from '@/components/ui';
-import { Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 
-interface Product {
-  id: string;
-  name: string;
-  categoryName: string;
-  price: number;
-  cost: number;
-  stock: number;
-  isAvailable: boolean;
-  image?: string;
+const PRODUCTS_PAGE_SIZE = 10;
+
+function apiErrorMessage(resp: ApiResponse<unknown>, fallback: string) {
+  const data: unknown = resp.data;
+  if (Array.isArray(data)) return data.join(', ');
+  return resp.msg || fallback;
 }
-
-// Mock data
-const mockProducts: Product[] = [
-  { id: '1', name: 'Empanada de Carne Suave', categoryName: 'Empanadas de Carne', price: 1.50, cost: 0.80, stock: 120, isAvailable: true },
-  { id: '2', name: 'Empanada de Pollo', categoryName: 'Empanadas de Pollo', price: 1.50, cost: 0.75, stock: 95, isAvailable: true },
-  { id: '3', name: 'Empanada de Queso', categoryName: 'Empanadas de Queso', price: 1.20, cost: 0.60, stock: 80, isAvailable: true },
-  { id: '4', name: 'Empanada de Humita', categoryName: 'Empanadas Vegetarianas', price: 1.20, cost: 0.65, stock: 45, isAvailable: false },
-  { id: '5', name: 'Coca Cola 500ml', categoryName: 'Bebidas', price: 1.00, cost: 0.50, stock: 200, isAvailable: true },
-  { id: '6', name: 'Agua Mineral', categoryName: 'Bebidas', price: 0.80, cost: 0.40, stock: 150, isAvailable: true },
-  { id: '7', name: 'Empanada de Carne Picante', categoryName: 'Empanadas de Carne', price: 1.60, cost: 0.85, stock: 70, isAvailable: true },
-  { id: '8', name: 'Empanada Caprese', categoryName: 'Empanadas Vegetarianas', price: 1.40, cost: 0.70, stock: 30, isAvailable: true },
-];
 
 export function ProductsListPage() {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [products, setProducts] = React.useState<ApiProduct[]>([]);
+  const [total, setTotal] = React.useState(0);
+  const [totalPages, setTotalPages] = React.useState(1);
+  const [page, setPage] = React.useState(1);
+  const [loading, setLoading] = React.useState(true);
+  const [categories, setCategories] = React.useState<ApiCategory[]>([]);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const isFirstSearchRender = React.useRef(true);
 
-  const filteredProducts = mockProducts.filter((product) =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.categoryName.toLowerCase().includes(searchQuery.toLowerCase())
+  const categoryName = (categoryId: number) =>
+    categories.find((category) => category.id === categoryId)?.name ?? '—';
+
+  const load = React.useCallback(
+    async (targetPage: number, term: string) => {
+      setLoading(true);
+      try {
+        const resp = await productService.list({
+          page: targetPage,
+          limit: PRODUCTS_PAGE_SIZE,
+          search: term.trim() || undefined,
+        });
+        if (resp.code !== 200) {
+          toast({
+            variant: 'warning',
+            title: '❌ Error al cargar productos',
+            description: apiErrorMessage(
+              resp,
+              'No se pudieron cargar los productos.',
+            ),
+          });
+          return;
+        }
+        setProducts(resp.data.items);
+        setTotal(resp.data.total);
+        setTotalPages(resp.data.totalPages);
+      } catch {
+        toast({
+          variant: 'warning',
+          title: '❌ Error al cargar productos',
+          description: 'No se pudo conectar con el servidor.',
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
   );
 
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-  const displayedProducts = filteredProducts.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // Categorías (para el nombre de la columna y para el diálogo de edición)
+  React.useEffect(() => {
+    void (async () => {
+      try {
+        const resp = await categoryService.list({ limit: 100 });
+        if (resp.code === 200) {
+          setCategories(resp.data.items.filter((category) => category.active));
+        }
+      } catch {
+        /* sin categorías el nombre queda como "—" */
+      }
+    })();
+  }, []);
 
-  const handleToggleAvailability = (productId: string, isAvailable: boolean) => {
-    console.log('Toggle availability:', productId, isAvailable);
-    // TODO: Implement toggle availability
+  React.useEffect(() => {
+    void load(1, '');
+  }, [load]);
+
+  // Búsqueda con debounce — siempre desde la página 1
+  React.useEffect(() => {
+    if (isFirstSearchRender.current) {
+      isFirstSearchRender.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      setPage(1);
+      void load(1, searchQuery);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery, load]);
+
+  const goToPage = (targetPage: number) => {
+    setPage(targetPage);
+    void load(targetPage, searchQuery);
   };
 
-  const handleEdit = (productId: string) => {
-    navigate(`/productos/editar/${productId}`);
+  const refreshCurrentPage = () => load(page, searchQuery);
+
+  // Editar: abre el MISMO formulario de creación en modo edición
+  const handleEditProduct = (product: ApiProduct) => {
+    navigate(`/productos/${product.id}/editar`);
   };
 
-  const handleDelete = (productId: string) => {
-    console.log('Delete product:', productId);
-    // TODO: Implement delete confirmation
+  // Disponibilidad: actualización optimista con reversión si falla
+  const handleToggleAvailability = async (
+    product: ApiProduct,
+    isAvailable: boolean,
+  ) => {
+    setProducts((previous) =>
+      previous.map((item) =>
+        item.id === product.id ? { ...item, available: isAvailable } : item,
+      ),
+    );
+
+    const resp = await productService.update(product.id, {
+      available: isAvailable,
+    });
+    if (resp.code !== 200) {
+      toast({
+        variant: 'warning',
+        title: '❌ Error al cambiar disponibilidad',
+        description: apiErrorMessage(
+          resp,
+          'No se pudo actualizar el producto.',
+        ),
+      });
+      void refreshCurrentPage();
+    }
+  };
+
+  const handleDelete = async (product: ApiProduct) => {
+    if (!window.confirm(`¿Seguro que quieres eliminar el producto "${product.name}"?`))
+      return;
+
+    const resp = await productService.remove(product.id);
+    if (resp.code === 200) {
+      toast({
+        variant: 'success',
+        title: '✅ Producto eliminado',
+        description: 'El producto y su imagen se han eliminado correctamente.',
+      });
+      // Si era el último de la página, vuelve una atrás
+      if (products.length === 1 && page > 1) {
+        goToPage(page - 1);
+      } else {
+        await refreshCurrentPage();
+      }
+    } else {
+      toast({
+        variant: 'warning',
+        title: '❌ Error al eliminar producto',
+        description: apiErrorMessage(resp, 'No se pudo eliminar el producto.'),
+      });
+    }
   };
 
   return (
@@ -90,7 +194,7 @@ export function ProductsListPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Buscar por nombre o categoría..."
+                placeholder="Buscar por nombre..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -117,9 +221,6 @@ export function ProductsListPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Costo
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        Stock
-                      </th>
                       <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Disponible
                       </th>
@@ -129,66 +230,93 @@ export function ProductsListPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {displayedProducts.map((product) => (
-                      <tr key={product.id} className="hover:bg-muted/50">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded bg-muted text-lg">
-                              🥟
-                            </div>
-                            <span className="font-medium">{product.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <Badge variant="secondary">{product.categoryName}</Badge>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-muted-foreground">$</span>
-                            <span className="font-medium">{product.price.toFixed(2)}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-muted-foreground">$</span>
-                            <span className="font-medium">{product.cost.toFixed(2)}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={product.stock < 50 ? 'text-red-500 font-medium' : ''}>
-                            {product.stock}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <Switch
-                            checked={product.isAvailable}
-                            onCheckedChange={(checked: boolean) =>
-                              handleToggleAvailability(product.id, checked)
-                            }
-                          />
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEdit(product.id)}
-                              className="h-8 w-8"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDelete(product.id)}
-                              className="h-8 w-8 hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                    {loading && products.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={6}
+                          className="px-6 py-10 text-center text-sm text-muted-foreground"
+                        >
+                          Cargando productos…
                         </td>
                       </tr>
-                    ))}
+                    )}
+                    {!loading && products.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={6}
+                          className="px-6 py-10 text-center text-sm text-muted-foreground"
+                        >
+                          No se encontraron productos.
+                        </td>
+                      </tr>
+                    )}
+                    {products.map((product) => {
+                      const imageUrl = resolveStorageUrl(product.imageUrl);
+                      return (
+                        <tr key={product.id} className="hover:bg-muted/50">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              {imageUrl ? (
+                                <img
+                                  src={imageUrl}
+                                  alt={product.name}
+                                  loading="lazy"
+                                  className="h-10 w-10 rounded object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-10 w-10 items-center justify-center rounded bg-muted text-lg">
+                                  🥟
+                                </div>
+                              )}
+                              <span className="font-medium">{product.name}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <Badge variant="secondary">
+                              {categoryName(product.categoryId)}
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="font-medium">
+                              {formatCurrency(Number(product.price))}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="font-medium">
+                              {formatCurrency(Number(product.cost))}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <Switch
+                              checked={product.available ?? true}
+                              onCheckedChange={(checked: boolean) =>
+                                void handleToggleAvailability(product, checked)
+                              }
+                            />
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEditProduct(product)}
+                                className="h-8 w-8"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => void handleDelete(product)}
+                                className="h-8 w-8 hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -196,33 +324,35 @@ export function ProductsListPage() {
               {/* Pagination */}
               <div className="flex items-center justify-between border-t px-6 py-4">
                 <p className="text-sm text-muted-foreground">
-                  Mostrando {displayedProducts.length} de {filteredProducts.length} productos
+                  Mostrando {products.length} de {total} productos
                 </p>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                    disabled={currentPage <= 1}
+                    onClick={() => goToPage(page - 1)}
+                    disabled={page <= 1 || totalPages === 0}
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </Button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <Button
-                      key={page}
-                      variant={page === currentPage ? 'default' : 'ghost'}
-                      size="icon"
-                      onClick={() => setCurrentPage(page)}
-                      className="h-8 w-8"
-                    >
-                      {page}
-                    </Button>
-                  ))}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (pageNumber) => (
+                      <Button
+                        key={pageNumber}
+                        variant={pageNumber === page ? 'default' : 'ghost'}
+                        size="icon"
+                        onClick={() => goToPage(pageNumber)}
+                        className="h-8 w-8"
+                      >
+                        {pageNumber}
+                      </Button>
+                    ),
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                    disabled={currentPage >= totalPages}
+                    onClick={() => goToPage(page + 1)}
+                    disabled={page >= totalPages || totalPages === 0}
                   >
                     <ChevronRight className="h-5 w-5" />
                   </Button>
@@ -230,6 +360,7 @@ export function ProductsListPage() {
               </div>
             </CardContent>
           </Card>
+
         </div>
       }
     />

@@ -5,6 +5,10 @@ export { Navbar } from './navbar';
 export { StatusBadge } from './status-badge';
 export { UserMenu } from './user-menu';
 export { ProductFormDialog } from './product-form-dialog';
+export type {
+  ProductFormData,
+  ProductFormSubmit,
+} from './product-form-dialog';
 export { CustomerFormDialog } from './customer-form-dialog';
 export { ConfigSidebar } from './config-sidebar';
 export { MobileSidebarDrawer } from './mobile-sidebar-drawer';
