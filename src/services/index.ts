@@ -1,5 +1,8 @@
 export { authService } from './auth-service';
 export { categoryService } from './category-service';
+export { employeeService } from './employee-service';
+export { paymentEmployeeService } from './payment-employee-service';
+export { payrollAdjustmentService } from './payroll-adjustment-service';
 export { locationService } from './location-service';
 export { sectionService } from './section-service';
 export { tableService } from './table-service';

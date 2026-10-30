@@ -377,3 +377,132 @@ export interface UpdateOrderPayload {
   paymentMethod?: string;
   notes?: string;
 }
+
+// Empleados (API /employees) — alcance sede del JWT
+/** Empleado del backend (`employees`). */
+export interface ApiEmployee {
+  id: number;
+  noDocument: string | null;
+  name: string;
+  phone: string;
+  email: string | null;
+  /** Fecha `YYYY-MM-DD` o `null`. */
+  birthdate: string | null;
+  active: boolean;
+  headquarterId: number | null;
+}
+
+export interface CreateEmployeePayload {
+  noDocument?: string;
+  name: string;
+  phone: string;
+  /** `null` limpia el correo. */
+  email?: string | null;
+  /** `YYYY-MM-DD`; `null` limpia la fecha. */
+  birthdate?: string | null;
+  active?: boolean;
+}
+
+export interface UpdateEmployeePayload {
+  noDocument?: string | null;
+  name?: string;
+  phone?: string;
+  email?: string | null;
+  birthdate?: string | null;
+  active?: boolean;
+}
+
+export interface ListEmployeesParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  active?: boolean;
+}
+
+// Pagos de empleados (API /payments-employees) — alcance sede vía empleado
+export type ApiPaymentEmployeeStatus = 'DRAFT' | 'PAID' | 'VOIDED';
+
+export interface ApiPaymentEmployee {
+  id: number;
+  periodStartDate: string;
+  periodEndDate: string;
+  /** ISO 8601. */
+  paymentDate: string;
+  subtotal: number;
+  totalAdvances: number;
+  totalDeductions: number;
+  /** Columna `total_payd`. */
+  totalPaid: number;
+  notes: string | null;
+  status: ApiPaymentEmployeeStatus;
+  employeeId: number;
+}
+
+export interface CreatePaymentEmployeePayload {
+  employeeId: number;
+  periodStartDate: string;
+  periodEndDate: string;
+  subtotal: number;
+  totalAdvances: number;
+  totalDeductions: number;
+  totalPaid: number;
+  paymentDate?: string;
+  notes?: string | null;
+  /** `VOIDED` solo se alcanza con `DELETE`. */
+  status?: 'DRAFT' | 'PAID';
+}
+
+export interface UpdatePaymentEmployeePayload {
+  periodStartDate?: string;
+  periodEndDate?: string;
+  paymentDate?: string;
+  subtotal?: number;
+  totalAdvances?: number;
+  totalDeductions?: number;
+  totalPaid?: number;
+  notes?: string | null;
+  status?: 'DRAFT' | 'PAID';
+}
+
+export interface ListPaymentEmployeesParams {
+  employeeId: number;
+  page?: number;
+  limit?: number;
+  status?: ApiPaymentEmployeeStatus;
+}
+
+// Ajustes de nómina (API /payroll-adjustments) — alcance sede vía empleado
+export type ApiPayrollAdjustmentStatus = 'EARRING' | 'APPLIED' | 'CANCELLED';
+
+export interface ApiPayrollAdjustment {
+  id: number;
+  /** Columna `concepto`. */
+  concept: string;
+  /** Positivo suma al pago, negativo lo descuenta. */
+  adjustmentValue: number;
+  description: string | null;
+  employeeId: number;
+  status: ApiPayrollAdjustmentStatus;
+}
+
+export interface CreatePayrollAdjustmentPayload {
+  employeeId: number;
+  concept: string;
+  adjustmentValue: number;
+  description?: string | null;
+  status?: 'EARRING' | 'APPLIED';
+}
+
+export interface UpdatePayrollAdjustmentPayload {
+  concept?: string;
+  adjustmentValue?: number;
+  description?: string | null;
+  status?: ApiPayrollAdjustmentStatus;
+}
+
+export interface ListPayrollAdjustmentsParams {
+  employeeId: number;
+  page?: number;
+  limit?: number;
+  status?: ApiPayrollAdjustmentStatus;
+}

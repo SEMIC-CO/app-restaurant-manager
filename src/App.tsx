@@ -19,6 +19,8 @@ import {
   UsersListPage,
   UserCreatePage,
   TablesListPage,
+  EmployeesListPage,
+  EmployeePayrollPage,
   AlertDemoPage,
   OrdersPage,
   OrderCreatePage,
@@ -62,6 +64,11 @@ function App() {
           <Route path="/configuracion/productos" element={<ProductsListPage />} />
           <Route path="/configuracion/categorias" element={<CategoriesListPage />} />
           <Route path="/configuracion/mesas" element={<TablesListPage />} />
+          <Route path="/configuracion/empleados" element={<EmployeesListPage />} />
+          <Route
+            path="/configuracion/empleados/:employeeId/nomina"
+            element={<EmployeePayrollPage />}
+          />
           <Route path="/configuracion/usuarios" element={<UsersListPage />} />
           <Route path="/configuracion/usuarios/nuevo" element={<UserCreatePage />} />
 
