@@ -52,6 +52,17 @@ class OrderService {
         });
     }
 
+    /** Reemplaza los ítems del pedido y recalcula totales (PUT /orders/:id/items). */
+    async updateItems(
+        id: number,
+        items: { productId: number; quantity: number }[],
+    ): Promise<ApiResponse<ApiOrder>> {
+        return apiFetch<ApiResponse<ApiOrder>>(`orders/${id}/items`, {
+            method: 'PUT',
+            body: JSON.stringify({ items }),
+        });
+    }
+
     async remove(id: number): Promise<ApiResponse<null>> {
         return apiFetch<ApiResponse<null>>(`orders/${id}`, {
             method: 'DELETE',

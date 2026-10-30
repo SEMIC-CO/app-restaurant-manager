@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   KitchenSidebar,
   TicketCard,
@@ -6,196 +6,238 @@ import {
 } from "@/components/kitchen";
 import type { Order } from "@/types";
 import { ConfigSidebar, AppHeader } from "@/components/common";
+import { toast, useOrderEvents } from "@/hooks";
+import { orderService, productService } from "@/services";
+import { mapApiOrder, toISODate } from "@/utils";
 
-// Mock data for kitchen orders
-const mockOrders: Order[] = [
-  {
-    id: "1",
-    orderNumber: "ORD-204",
-    items: [
-      {
-        id: "1",
-        productId: "1",
-        productName: "Carne",
-        quantity: 3,
-        unitPrice: 1.5,
-        subtotal: 4.5,
-      },
-      {
-        id: "2",
-        productId: "3",
-        productName: "Queso",
-        quantity: 2,
-        unitPrice: 1.2,
-        subtotal: 2.4,
-      },
-    ],
-    subtotal: 6.9,
-    tax: 0.69,
-    total: 7.59,
-    status: "preparing",
-    type: "para-llevar",
-    tableNumber: 5,
-    createdAt: new Date(Date.now() - 18 * 60000), // 18 min ago
-    updatedAt: new Date(),
-  },
-  {
-    id: "2",
-    orderNumber: "ORD-205",
-    items: [
-      {
-        id: "3",
-        productId: "2",
-        productName: "Pollo",
-        quantity: 6,
-        unitPrice: 1.5,
-        subtotal: 9,
-      },
-      {
-        id: "4",
-        productId: "5",
-        productName: "Bebida (Cola)",
-        quantity: 2,
-        unitPrice: 1,
-        subtotal: 2,
-      },
-    ],
-    subtotal: 11,
-    tax: 1.1,
-    total: 12.1,
-    status: "preparing",
-    type: "para-llevar",
-    createdAt: new Date(Date.now() - 12 * 60000), // 12 min ago
-    updatedAt: new Date(),
-  },
-  {
-    id: "3",
-    orderNumber: "ORD-206",
-    items: [
-      {
-        id: "5",
-        productId: "7",
-        productName: "Humita",
-        quantity: 1,
-        unitPrice: 1.2,
-        subtotal: 1.2,
-      },
-      {
-        id: "6",
-        productId: "1",
-        productName: "Carne",
-        quantity: 1,
-        unitPrice: 1.5,
-        subtotal: 1.5,
-      },
-      {
-        id: "7",
-        productId: "2",
-        productName: "Pollo",
-        quantity: 1,
-        unitPrice: 1.5,
-        subtotal: 1.5,
-      },
-    ],
-    subtotal: 4.2,
-    tax: 0.42,
-    total: 4.62,
-    status: "preparing",
-    type: "para-llevar",
-    tableNumber: 2,
-    createdAt: new Date(Date.now() - 2 * 60000), // 2 min ago
-    updatedAt: new Date(),
-  },
-  {
-    id: "4",
-    orderNumber: "ORD-207",
-    items: [
-      {
-        id: "8",
-        productId: "7",
-        productName: "Humita",
-        quantity: 10,
-        unitPrice: 1.2,
-        subtotal: 12,
-      },
-      {
-        id: "9",
-        productId: "3",
-        productName: "Queso",
-        quantity: 5,
-        unitPrice: 1.2,
-        subtotal: 6,
-      },
-    ],
-    subtotal: 18,
-    tax: 1.8,
-    total: 19.8,
-    status: "preparing",
-    type: "domicilio",
-    createdAt: new Date(Date.now() - 45000), // 45 sec ago
-    updatedAt: new Date(),
-  },
-  {
-    id: "5",
-    orderNumber: "ORD-208",
-    items: [
-      {
-        id: "10",
-        productId: "8",
-        productName: "Carne Picante",
-        quantity: 4,
-        unitPrice: 1.5,
-        subtotal: 6,
-      },
-      {
-        id: "11",
-        productId: "1",
-        productName: "Carne Suave",
-        quantity: 4,
-        unitPrice: 1.5,
-        subtotal: 6,
-      },
-    ],
-    subtotal: 12,
-    tax: 1.2,
-    total: 13.2,
-    status: "preparing",
-    type: "para-llevar",
-    tableNumber: 10,
-    createdAt: new Date(Date.now() - 30000), // 30 sec ago
-    updatedAt: new Date(),
-  },
-];
+/** Refresco de la cola de cocina (pedidos que entran/salen desde otras vistas). */
+const POLL_INTERVAL_MS = 30000;
 
-const flavorCounts = [
-  { name: "Carne", count: 12 },
-  { name: "Pollo", count: 10 },
-  { name: "Queso", count: 8 },
-  { name: "Humita", count: 12 },
-];
-
-const ticketFilters = [
-  { type: "all" as const, label: "Todos", count: 12 },
-  { type: "para-llevar" as const, label: "Para Llevar" },
-  { type: "mesa" as const, label: "Mesa" },
-  { type: "domicilio" as const, label: "Domicilio" },
-];
+function apiErrorMessage(resp: { code: number; msg: string; data: unknown }, fallback: string) {
+  const data: unknown = resp.data;
+  if (Array.isArray(data)) return data.join(", ");
+  return resp.msg || fallback;
+}
 
 /**
- * Kitchen page - Order queue management for kitchen staff
+ * Cocina: cola de tickets con los pedidos **reales** de la sede
+ * (pendientes + en preparación), filtros por tipo con conteos reales,
+ * unidades a preparar y desglose por producto. "Marcar Listo" avanza el
+ * estado en el backend (pending → preparing → ready).
+ *
+ * El filtro **"Listos / Entregados"** muestra el histórico de tickets que
+ * ya terminaron su paso por cocina (`ready` + `delivered`), con su propio
+ * conteo; los datos siguen refrescándose por polling y Socket.IO.
  */
 export function KitchenPage() {
   const [activeFilter, setActiveFilter] = useState<string>("all");
-  const [orders, setOrders] = useState(mockOrders);
+  const [orders, setOrders] = useState<Order[]>([]);
+  /** Tickets finalizados en cocina (listos, entregados o facturados). */
+  const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const filteredOrders =
-    activeFilter === "all"
+  const load = useCallback(async () => {
+    try {
+      // Cola e histórico solo del día actual (filtros dateFrom/dateTo).
+      const today = toISODate();
+      const [
+        pendingResp,
+        preparingResp,
+        readyResp,
+        deliveredResp,
+        paidResp,
+        products,
+      ] = await Promise.all([
+        orderService.list({ limit: 100, status: "pending", dateFrom: today, dateTo: today }),
+        orderService.list({ limit: 100, status: "preparing", dateFrom: today, dateTo: today }),
+        orderService.list({ limit: 100, status: "ready", dateFrom: today, dateTo: today }),
+        orderService.list({ limit: 100, status: "delivered", dateFrom: today, dateTo: today }),
+        orderService.list({ limit: 100, status: "paid", dateFrom: today, dateTo: today }),
+        productService.listAll(),
+      ]);
+
+      const failed = [
+        pendingResp,
+        preparingResp,
+        readyResp,
+        deliveredResp,
+        paidResp,
+      ].find((resp) => resp.code !== 200);
+      if (failed) {
+        toast({
+          variant: "warning",
+          title: "❌ Error al cargar la cola",
+          description: apiErrorMessage(failed, "No se pudieron cargar los pedidos."),
+        });
+        return;
+      }
+
+      const nameByProduct = new Map(
+        products.map((product) => [product.id, product.name]),
+      );
+      // La cocina atiende por orden de llegada: más antiguos primero
+      setOrders(
+        [...pendingResp.data.items, ...preparingResp.data.items]
+          .map((order) => mapApiOrder(order, nameByProduct))
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
+      );
+      // Histórico de finalizados (listos, entregados y facturados): los más
+      // recientes arriba
+      setCompletedOrders(
+        [
+          ...readyResp.data.items,
+          ...deliveredResp.data.items,
+          ...paidResp.data.items,
+        ]
+          .map((order) => mapApiOrder(order, nameByProduct))
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+      );
+    } catch {
+      toast({
+        variant: "warning",
+        title: "❌ Error al cargar la cola",
+        description: "No se pudo conectar con el servidor.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+    const interval = setInterval(() => {
+      void load();
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [load]);
+
+  // Tiempo real (Socket.IO): cada alta, cambio o borrado de pedido recarga la
+  // cola al instante, sin que nadie tenga que refrescar la pantalla.
+  useOrderEvents({
+    onOrderCreated: () => void load(),
+    onOrderUpdated: () => void load(),
+    onOrderDeleted: () => void load(),
+  });
+
+  const filteredOrders = useMemo(() => {
+    // "completados" → histórico de tickets listos o entregados (todos los tipos)
+    if (activeFilter === "completados") return completedOrders;
+    return activeFilter === "all"
       ? orders
-      : orders.filter((o) => o.type === activeFilter);
+      : orders.filter((order) => order.type === activeFilter);
+  }, [orders, completedOrders, activeFilter]);
 
-  const handleMarkReady = (orderId: string) => {
-    setOrders((prev) => prev.filter((o) => o.id !== orderId));
-    console.log("Order marked ready:", orderId);
+  // Conteos reales por tipo (pestañas de filtro)
+  const counts = useMemo(() => {
+    const result: Record<string, number> = {
+      all: orders.length,
+      "para-llevar": 0,
+      mesa: 0,
+      domicilio: 0,
+      completados: completedOrders.length,
+    };
+    orders.forEach((order) => {
+      result[order.type] += 1;
+    });
+    return result;
+  }, [orders, completedOrders]);
+
+  const ticketFilters = useMemo(
+    () => [
+      { type: "all" as const, label: "Todos", count: counts.all },
+      { type: "para-llevar" as const, label: "Para Llevar", count: counts["para-llevar"] },
+      { type: "mesa" as const, label: "Mesa", count: counts.mesa },
+      { type: "domicilio" as const, label: "Domicilio", count: counts.domicilio },
+      {
+        type: "completados" as const,
+        label: "Listos / Entregados",
+        count: counts.completados,
+      },
+    ],
+    [counts],
+  );
+
+  // Unidades a preparar (suma de cantidades de la cola)
+  const totalUnits = useMemo(
+    () =>
+      orders.reduce(
+        (sum, order) =>
+          sum + order.items.reduce((inner, item) => inner + item.quantity, 0),
+        0,
+      ),
+    [orders],
+  );
+
+  // Desglose real por producto (top6) para el panel lateral
+  const flavorCounts = useMemo(() => {
+    const byProduct = new Map<string, number>();
+    orders.forEach((order) =>
+      order.items.forEach((item) =>
+        byProduct.set(
+          item.productName,
+          (byProduct.get(item.productName) ?? 0) + item.quantity,
+        ),
+      ),
+    );
+    return [...byProduct.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
+  }, [orders]);
+
+  /**
+   * "Marcar Listo": la matriz de estados no permite saltar pending → ready,
+   * así que un pedido pendiente pasa primero por preparing.
+   */
+  const handleMarkReady = async (orderId: string) => {
+    if (updatingId) return;
+    const order = orders.find((item) => item.id === orderId);
+    if (!order) return;
+
+    setUpdatingId(orderId);
+    try {
+      if (order.status === "pending") {
+        const preparing = await orderService.update(Number(orderId), {
+          status: "preparing",
+        });
+        if (preparing.code !== 200) {
+          toast({
+            variant: "warning",
+            title: "❌ No se pudo iniciar la preparación",
+            description: apiErrorMessage(preparing, "Intenta de nuevo."),
+          });
+          return;
+        }
+      }
+
+      const ready = await orderService.update(Number(orderId), {
+        status: "ready",
+      });
+      if (ready.code === 200) {
+        setOrders((prev) => prev.filter((item) => item.id !== orderId));
+        toast({
+          variant: "success",
+          title: "✅ Ticket listo",
+          description: `El pedido ${order.orderNumber} está listo para entregar.`,
+        });
+      } else {
+        toast({
+          variant: "warning",
+          title: "❌ No se pudo marcar el ticket",
+          description: apiErrorMessage(ready, "Intenta de nuevo."),
+        });
+      }
+    } catch {
+      toast({
+        variant: "warning",
+        title: "❌ No se pudo marcar el ticket",
+        description: "No se pudo conectar con el servidor.",
+      });
+    } finally {
+      setUpdatingId(null);
+      void load();
+    }
   };
 
   return (
@@ -212,14 +254,9 @@ export function KitchenPage() {
         </div>
 
         <div className="flex flex-1 overflow-hidden min-h-0">
-          {/* 2a) Kitchen sidebar - contador de pendientes (lg+) */}
+          {/* 2a) Kitchen sidebar - unidades a preparar + top productos (lg+) */}
           <aside className="hidden w-[200px] flex-shrink-0 bg-primary text-primary-foreground lg:block h-full overflow-y-auto">
-            <KitchenSidebar
-              totalPending={42}
-              flavorCounts={flavorCounts}
-              stationName="Cocina Principal"
-              shiftName="Turno Tarde"
-            />
+            <KitchenSidebar totalPending={totalUnits} flavorCounts={flavorCounts} />
           </aside>
 
           {/* 2b) Ticket grid (main) */}
@@ -234,23 +271,40 @@ export function KitchenPage() {
                 />
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-                {filteredOrders.map((order) => (
-                  <TicketCard
-                    key={order.id}
-                    order={order}
-                    onMarkReady={handleMarkReady}
-                  />
-                ))}
-              </div>
-
-              {filteredOrders.length === 0 && (
+              {loading && orders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <span className="text-4xl">✅</span>
-                  <p className="mt-4 text-lg font-medium">¡Todo al día!</p>
+                  <span className="text-4xl">⏳</span>
+                  <p className="mt-4 text-lg font-medium">Cargando tickets…</p>
                   <p className="text-muted-foreground">
-                    No hay pedidos pendientes
+                    Consultando los pedidos de la sede
                   </p>
+                </div>
+              ) : filteredOrders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <span className="text-4xl">
+                    {activeFilter === "completados" ? "🕓" : "✅"}
+                  </span>
+                  <p className="mt-4 text-lg font-medium">
+                    {activeFilter === "completados" ? "Sin tickets finalizados" : "¡Todo al día!"}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {activeFilter === "completados"
+                      ? "Todavía no hay pedidos listos ni entregados"
+                      : orders.length === 0
+                        ? "No hay pedidos pendientes en la cocina"
+                        : "No hay pedidos con este filtro"}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {filteredOrders.map((order) => (
+                    <TicketCard
+                      key={order.id}
+                      order={order}
+                      onMarkReady={handleMarkReady}
+                      updating={updatingId === order.id}
+                    />
+                  ))}
                 </div>
               )}
             </div>

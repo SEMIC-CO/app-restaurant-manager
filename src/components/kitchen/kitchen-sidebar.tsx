@@ -24,12 +24,12 @@ export function KitchenSidebar({
     <div className="flex h-full flex-col">
       {/* Total pending header */}
       <div className="p-6">
-        <p className="text-sm font-medium uppercase opacity-80">Total a Freír</p>
+        <p className="text-sm font-medium uppercase opacity-80">Total</p>
         <div className="mt-2 flex items-baseline gap-1">
           <span className="text-6xl font-bold">{totalPending}</span>
           <span className="text-2xl">u.</span>
         </div>
-        <p className="mt-1 text-sm opacity-80">Empanadas pendientes</p>
+        <p className="mt-1 text-sm opacity-80">Preparaciones pendientes</p>
       </div>
 
       {/* Flavor breakdown */}

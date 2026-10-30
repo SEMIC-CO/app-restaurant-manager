@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { POSLayout } from '@/app/layout';
 import {
@@ -9,51 +9,35 @@ import {
   SearchInput,
 } from '@/components/common';
 import { Button } from '@/components/ui';
-import { OrderCreateSidebar, ORDER_TYPE_LABELS, ProductGrid } from '@/components/pos';
+import { OrderCreateSidebar, ProductGrid } from '@/components/pos';
 import { toast, useCategories, useFloorTables, useProducts } from '@/hooks';
-import { orderService } from '@/services';
+import { orderService, productService } from '@/services';
 import { useOrdersStore } from '@/store';
+import { mapApiOrder, orderTypeFromApi, resolveStorageUrl } from '@/utils';
 import type {
   ApiOrder,
+  ApiResponse,
   FloorTable,
-  Order,
   OrderItem,
   OrderType,
   Product,
 } from '@/types';
 
-/** Convierte la orden del backend al modelo del store (con nombres de producto). */
-function mapApiOrder(api: ApiOrder, type: OrderType, nameByProduct: Map<number, string>): Order {
-  return {
-    id: String(api.id),
-    orderNumber: api.orderNumber,
-    customerName: api.customerName ?? undefined,
-    tableNumber: api.tableNumber ? Number(api.tableNumber) : undefined,
-    status: api.status,
-    subtotal: Number(api.subtotal),
-    tax: 0,
-    total: Number(api.total),
-    type,
-    items: api.items.map((item) => ({
-      id: String(item.id ?? crypto.randomUUID()),
-      productId: String(item.productId),
-      productName: nameByProduct.get(item.productId) ?? '',
-      quantity: item.quantity,
-      unitPrice: Number(item.unitPrice),
-      subtotal: Number(item.subtotal),
-    })),
-    createdAt: new Date(api.orderDatetime),
-    updatedAt: new Date(),
-  };
+function apiErrorMessage(resp: ApiResponse<unknown>, fallback: string) {
+  const data: unknown = resp.data;
+  if (Array.isArray(data)) return data.join(', ');
+  return resp.msg || fallback;
 }
 
 /**
- * Pantalla de creación de pedidos (se abre desde Pedidos > "Crear orden"):
- * catálogo por categorías a la izquierda + formulario/carrito a la derecha.
+ * Pedidos: creación (por defecto) y **edición** (`/pedidos/:orderId/editar`
+ * — misma vista con la info, productos y notas precargados).
  */
 export function OrderCreatePage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { orderId } = useParams<{ orderId: string }>();
+  const isEditing = Boolean(orderId);
 
   // Productos por categoría (mismo flujo que Caja)
   const [activeCategory, setActiveCategory] = useState('all');
@@ -62,17 +46,27 @@ export function OrderCreatePage() {
   const { products, loading } = useProducts(activeCategory);
 
   // Mesas de la sede + órdenes activas (ocupada/libre)
-  const { tables, refresh: refreshTables } = useFloorTables();
+  const { tables, sections, loading: tablesLoading, refresh: refreshTables } =
+    useFloorTables();
 
   // Pedidos creados en esta sesión (la lista de Pedidos los muestra)
   const addOrder = useOrdersStore((state) => state.addOrder);
 
   // Formulario del nuevo pedido
-  const [orderType, setOrderType] = useState<OrderType>('para-llevar');
+  // Tipo de pedido: Mesa por defecto (coincide con el default de la BD)
+  const [orderType, setOrderType] = useState<OrderType>('mesa');
   const [customerName, setCustomerName] = useState('');
+  // Entrega a domicilio (solo se envían con orderType === 'domicilio')
+  const [address, setAddress] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  // Notas libres del pedido (columna `orders.notes`)
+  const [notes, setNotes] = useState('');
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [creating, setCreating] = useState(false);
+  // Modo edición: pedido original del backend
+  const [editingApi, setEditingApi] = useState<ApiOrder | null>(null);
+  const [loadingOrder, setLoadingOrder] = useState(isEditing);
 
   // La mesa llega desde /mesas (TablesPage navega con state.mesa)
   useEffect(() => {
@@ -82,6 +76,116 @@ export function OrderCreatePage() {
       setOrderType('mesa');
     }
   }, [location.state]);
+
+  // Modo edición: carga el pedido y precarga este mismo formulario
+  useEffect(() => {
+    if (!orderId) return;
+    const id = Number(orderId);
+    if (!Number.isInteger(id)) {
+      toast({
+        variant: 'warning',
+        title: '❌ Pedido no encontrado',
+        description: 'El identificador del pedido no es válido.',
+      });
+      navigate('/pedidos');
+      return;
+    }
+
+    let active = true;
+    setLoadingOrder(true);
+
+    void (async () => {
+      try {
+        const [orderResp, productList] = await Promise.all([
+          orderService.getById(id),
+          productService.listAll(),
+        ]);
+        if (!active) return;
+
+        if (orderResp.code !== 200 || !orderResp.data) {
+          toast({
+            variant: 'warning',
+            title: '❌ Pedido no encontrado',
+            description: apiErrorMessage(orderResp, 'No se pudo cargar el pedido.'),
+          });
+          navigate('/pedidos');
+          return;
+        }
+
+        const api = orderResp.data;
+        if (
+          api.status === 'delivered' ||
+          api.status === 'paid' ||
+          api.status === 'cancelled'
+        ) {
+          toast({
+            variant: 'warning',
+            title: '❌ Pedido finalizado',
+            description: 'Solo se pueden editar pedidos en curso.',
+          });
+          navigate('/pedidos');
+          return;
+        }
+
+        const nameByProduct = new Map(
+          productList.map((product) => [product.id, product.name]),
+        );
+        const imageByProduct = new Map(
+          productList.map((product) => [
+            String(product.id),
+            resolveStorageUrl(product.imageUrl) ?? undefined,
+          ]),
+        );
+        const mapped = mapApiOrder(api, nameByProduct);
+
+        setEditingApi(api);
+        setOrderType(orderTypeFromApi(api));
+        setCustomerName(api.customerName ?? '');
+        setAddress(api.address ?? '');
+        setCustomerPhone(api.customerPhone ?? '');
+        setNotes(api.notes ?? '');
+        setSelectedTableId(api.idTable);
+        setItems(
+          mapped.items.map((item) => ({
+            ...item,
+            productImage: imageByProduct.get(item.productId),
+          })),
+        );
+      } catch {
+        if (active) {
+          toast({
+            variant: 'warning',
+            title: '❌ Error al cargar el pedido',
+            description: 'No se pudo conectar con el servidor.',
+          });
+          navigate('/pedidos');
+        }
+      } finally {
+        if (active) setLoadingOrder(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId]);
+
+  if (loadingOrder) {
+    return (
+      <div className="flex h-screen w-full overflow-hidden bg-muted/30">
+        <aside className="hidden w-[220px] flex-shrink-0 border-r bg-card lg:block h-full overflow-y-auto">
+          <ConfigSidebar />
+        </aside>
+        <div className="flex flex-1 flex-col min-w-0">
+          <AppHeader />
+          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+            Cargando pedido…
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const selectedTable = tables.find((table) => table.id === selectedTableId) ?? null;
 
@@ -111,6 +215,7 @@ export function OrderCreatePage() {
           id: product.id,
           productId: product.id,
           productName: product.name,
+          productImage: product.image,
           quantity: 1,
           unitPrice: product.price,
           subtotal: product.price,
@@ -140,32 +245,89 @@ export function OrderCreatePage() {
       toast({
         variant: 'warning',
         title: '🪑 Selecciona una mesa',
-        description: 'Los pedidos de tipo Mesa requieren una mesa asignada.',
+        description: tablesLoading
+          ? 'Espera a que carguen las mesas de la sede.'
+          : 'Los pedidos de tipo Mesa requieren una mesa asignada.',
       });
       return;
     }
 
     setCreating(true);
     try {
+      // ===== MODO EDICIÓN: actualiza la información y sustituye los ítems =====
+      if (isEditing && editingApi) {
+        const infoResp = await orderService.update(editingApi.id, {
+          customerName: customerName.trim() || undefined,
+          // La mesa solo aplica a tipo Mesa; el resto limpia ("" / null)
+          tableNumber: orderType === 'mesa' ? (selectedTable?.name ?? '') : '',
+          idTable: orderType === 'mesa' ? (selectedTable?.id ?? null) : null,
+          orderType,
+          notes: notes.trim() || undefined,
+          ...(orderType === 'domicilio'
+            ? { address: address.trim(), customerPhone: customerPhone.trim() }
+            : { address: '', customerPhone: '' }),
+        });
+        if (infoResp.code !== 200) {
+          toast({
+            variant: 'warning',
+            title: '❌ No se pudo actualizar',
+            description: apiErrorMessage(infoResp, 'Revisa los datos e inténtalo de nuevo.'),
+          });
+          return;
+        }
+
+        const itemsResp = await orderService.updateItems(
+          editingApi.id,
+          items.map((item) => ({
+            productId: Number(item.productId),
+            quantity: item.quantity,
+          })),
+        );
+        if (itemsResp.code !== 200 && itemsResp.code !== 201) {
+          toast({
+            variant: 'warning',
+            title: '❌ No se pudieron actualizar los productos',
+            description: apiErrorMessage(
+              itemsResp,
+              'La información se guardó, pero los productos no se actualizaron.',
+            ),
+          });
+          return;
+        }
+
+        toast({
+          variant: 'success',
+          title: '✅ Pedido actualizado',
+          description: `El pedido ${editingApi.orderNumber} se actualizó correctamente.`,
+        });
+        void refreshTables();
+        navigate('/pedidos');
+        return;
+      }
+
+      // ===== MODO CREACIÓN =====
       const resp = await orderService.create({
         customerName: customerName.trim() || undefined,
-        tableNumber: selectedTable?.name,
-        idTable: selectedTable?.id,
+        // La mesa solo aplica a pedidos de tipo Mesa
+        tableNumber: orderType === 'mesa' ? selectedTable?.name : undefined,
+        idTable: orderType === 'mesa' ? selectedTable?.id : undefined,
         items: items.map((item) => ({
           productId: Number(item.productId),
           quantity: item.quantity,
         })),
         orderType,
-        // El backend no tiene columna para el tipo de orden (lo descarta el
-        // whitelist del ValidationPipe), así que se replica en las notas.
-        notes: `Tipo de orden: ${ORDER_TYPE_LABELS[orderType]}`,
+        notes: notes.trim() || undefined,
+        // Dirección/teléfono solo viajan en domicilio; vacíos → null en BD
+        ...(orderType === 'domicilio'
+          ? { address: address.trim(), customerPhone: customerPhone.trim() }
+          : {}),
       });
 
       if (resp.code === 200 || resp.code === 201) {
         const nameByProduct = new Map(
           items.map((item) => [Number(item.productId), item.productName]),
         );
-        addOrder(mapApiOrder(resp.data, orderType, nameByProduct));
+        addOrder(mapApiOrder(resp.data, nameByProduct));
 
         toast({
           variant: 'success',
@@ -197,6 +359,48 @@ export function OrderCreatePage() {
     }
   };
 
+  // Cancelar el pedido desde la propia vista de edición
+  const handleCancelOrder = async () => {
+    if (!editingApi || creating) return;
+    if (
+      !window.confirm(
+        `¿Seguro que quieres cancelar el pedido ${editingApi.orderNumber}? Esta acción no se puede deshacer.`,
+      )
+    ) {
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const resp = await orderService.update(editingApi.id, {
+        status: 'cancelled',
+      });
+      if (resp.code === 200) {
+        toast({
+          variant: 'success',
+          title: '✅ Pedido cancelado',
+          description: `El pedido ${editingApi.orderNumber} quedó cancelado.`,
+        });
+        void refreshTables();
+        navigate('/pedidos');
+      } else {
+        toast({
+          variant: 'warning',
+          title: '❌ No se pudo cancelar',
+          description: apiErrorMessage(resp, 'Intenta de nuevo.'),
+        });
+      }
+    } catch {
+      toast({
+        variant: 'warning',
+        title: '❌ No se pudo cancelar',
+        description: 'No se pudo conectar con el servidor.',
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-muted/30 relative">
       <aside className="hidden w-[220px] flex-shrink-0 border-r bg-card lg:block h-full overflow-y-auto">
@@ -209,6 +413,7 @@ export function OrderCreatePage() {
         </div>
 
         <POSLayout
+          wide
           main={
             <div className="space-y-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -223,9 +428,13 @@ export function OrderCreatePage() {
                     Volver a pedidos
                   </Button>
                   <div>
-                    <h1 className="text-xl font-semibold tracking-tight">Nuevo Pedido</h1>
+                    <h1 className="text-xl font-semibold tracking-tight">
+                      {isEditing ? 'Editar Pedido' : 'Nuevo Pedido'}
+                    </h1>
                     <p className="text-sm text-muted-foreground">
-                      Selecciona los productos de la carta
+                      {isEditing
+                        ? 'Actualiza la información, los productos o las notas'
+                        : 'Selecciona los productos de la carta'}
                     </p>
                   </div>
                 </div>
@@ -248,18 +457,31 @@ export function OrderCreatePage() {
                 products={filteredProducts}
                 onAddToCart={handleAddToCart}
                 loading={loading}
+                dense
               />
             </div>
           }
           sidebar={
             <OrderCreateSidebar
+              title={isEditing ? 'Editar Pedido' : undefined}
+              submitLabel={isEditing ? 'Guardar Cambios' : undefined}
+              onCancelOrder={isEditing ? handleCancelOrder : undefined}
+              cancelling={creating}
               orderType={orderType}
               onOrderTypeChange={setOrderType}
               customerName={customerName}
               onCustomerNameChange={setCustomerName}
+              address={address}
+              onAddressChange={setAddress}
+              customerPhone={customerPhone}
+              onCustomerPhoneChange={setCustomerPhone}
+              notes={notes}
+              onNotesChange={setNotes}
               selectedTableId={selectedTableId}
               onTableChange={setSelectedTableId}
               tables={tables}
+              sections={sections}
+              tablesLoading={tablesLoading}
               items={items}
               onUpdateQuantity={handleUpdateQuantity}
               onRemoveItem={handleRemoveItem}

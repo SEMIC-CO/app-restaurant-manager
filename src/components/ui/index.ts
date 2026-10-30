@@ -6,6 +6,9 @@ export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
 export { Input } from "./input";
 export type { InputProps } from "./input";
 
+export { MoneyInput } from "./money-input";
+export type { MoneyInputProps } from "./money-input";
+
 export { Badge, badgeVariants } from "./badge";
 export type { BadgeProps } from "./badge";
 

@@ -25,7 +25,7 @@ const mockReadyOrders: Order[] = [
     total: 7.5,
     status: 'paid',
     type: 'para-llevar',
-    tableNumber: 3,
+    tableNumber: '3',
     customerName: 'Juan Pérez',
     createdAt: new Date(Date.now() - 5 * 60000),
     updatedAt: new Date(),

@@ -7,4 +7,8 @@ export { locationService } from './location-service';
 export { sectionService } from './section-service';
 export { tableService } from './table-service';
 export { orderService } from './order-service';
+export { invoiceService } from './invoice-service';
+export { connectOrderEvents } from './order-events';
+export type { OrderEventHandlers } from './order-events';
 export { productService } from './product-service';
+export { reportService } from './report-service';

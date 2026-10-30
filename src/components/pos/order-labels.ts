@@ -17,7 +17,7 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   ready: 'Lista',
   delivered: 'Entregada',
   paid: 'Pagada',
-  cancelled: 'Cancelada',
+  cancelled: 'Cancelado',
 };
 
 /** Estilos del badge de tipo de orden (Mesa / Para Llevar / Domicilio). */

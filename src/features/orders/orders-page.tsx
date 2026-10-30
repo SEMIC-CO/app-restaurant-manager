@@ -1,23 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { POSLayout } from '@/app/layout';
 import { AppHeader, ConfigSidebar, SearchInput } from '@/components/common';
+import { Button } from '@/components/ui';
 import {
-  Badge,
-  Button,
-} from '@/components/ui';
-import {
+  OrderCard,
   OrderDetailPanel,
-  ORDER_STATUS_BADGE_CLASSES,
-  ORDER_STATUS_LABELS,
-  ORDER_TYPE_BADGE_CLASSES,
-  ORDER_TYPE_LABELS,
 } from '@/components/pos';
+import { toast } from '@/hooks';
+import { orderService, productService } from '@/services';
 import { useOrdersStore } from '@/store';
-import { formatCurrency } from '@/utils';
+import { mapApiOrder, toISODate } from '@/utils';
 import { cn } from '@/lib/utils';
-import type { Order, OrderType } from '@/types';
+import type { Order, OrderType, ApiResponse } from '@/types';
 
 type TypeFilter = 'todas' | OrderType;
 
@@ -28,22 +24,90 @@ const TYPE_TAGS: Array<{ id: TypeFilter; label: string }> = [
   { id: 'domicilio', label: 'Domicilio' },
 ];
 
+function apiErrorMessage(resp: ApiResponse<unknown>, fallback: string) {
+  const data: unknown = resp.data;
+  if (Array.isArray(data)) return data.join(', ');
+  return resp.msg || fallback;
+}
+
+/** Órdenes finalizadas: sin edición ni cancelación. */
+function isFinalOrder(order: Order): boolean {
+  return (
+    order.status === 'delivered' ||
+    order.status === 'paid' ||
+    order.status === 'cancelled'
+  );
+}
+
 /**
  * Pedidos: listado de tarjetas (número, mesa, total) con filtro por tags de
  * tipo de orden y sección derecha con el detalle del pedido seleccionado.
- * El botón "Crear orden" abre la pantalla de creación (/pedidos/nuevo).
+ * El botón "Crear pedido" abre la pantalla de creación (/pedidos/nuevo).
  */
 export function OrdersPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const orders = useOrdersStore((state) => state.orders);
+  const setOrders = useOrdersStore((state) => state.setOrders);
+  const updateOrderStatus = useOrdersStore((state) => state.updateOrderStatus);
 
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('todas');
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   // El pedido recién creado llega desde la pantalla de creación (router state)
   const [selectedId, setSelectedId] = useState<string | null>(
     () => (location.state as { selectedOrderId?: string } | null)?.selectedOrderId ?? null,
   );
+
+  // La store vive solo en memoria: al montar (crear/recargar) se consulta la
+  // lista real del backend y se reemplaza el contenido de la store.
+  useEffect(() => {
+    let active = true;
+
+    void (async () => {
+      try {
+        // Los filtros de la vista operan solo sobre los pedidos del día actual.
+        const today = toISODate();
+        const [ordersResp, products] = await Promise.all([
+          orderService.list({ limit: 100, dateFrom: today, dateTo: today }),
+          productService.listAll(),
+        ]);
+        if (!active) return;
+
+        if (ordersResp.code === 200) {
+          const nameByProduct = new Map(
+            products.map((product) => [product.id, product.name]),
+          );
+          setOrders(
+            ordersResp.data.items.map((order) =>
+              mapApiOrder(order, nameByProduct),
+            ),
+          );
+        } else {
+          toast({
+            variant: 'warning',
+            title: '❌ Error al cargar pedidos',
+            description: ordersResp.msg || 'No se pudieron cargar los pedidos.',
+          });
+        }
+      } catch {
+        if (active) {
+          toast({
+            variant: 'warning',
+            title: '❌ Error al cargar pedidos',
+            description: 'No se pudo conectar con el servidor.',
+          });
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [setOrders]);
 
   // Conteo por tag para mostrar la cantidad en cada filtro
   const counts = useMemo(() => {
@@ -55,7 +119,8 @@ export function OrdersPage() {
   }, [orders]);
 
   const filteredOrders = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    // Se busca con o sin el numeral (#20261025-0007 o 20261025-0007)
+    const query = search.trim().toLowerCase().replace(/^#/, '');
     return orders.filter((order) => {
       const matchesType = typeFilter === 'todas' || order.type === typeFilter;
       const matchesSearch =
@@ -69,6 +134,48 @@ export function OrdersPage() {
 
   const selectedOrder = orders.find((order) => order.id === selectedId) ?? null;
 
+  // Cancelar un pedido: PUT /orders/:id { status: 'cancelled' } (matriz de
+  // transiciones del backend) y actualización optimista de la store.
+  const handleCancelOrder = async (order: Order) => {
+    if (cancellingId) return;
+    if (
+      !window.confirm(
+        `¿Seguro que quieres cancelar el pedido ${order.orderNumber}? Esta acción no se puede deshacer.`,
+      )
+    ) {
+      return;
+    }
+
+    setCancellingId(order.id);
+    try {
+      const resp = await orderService.update(Number(order.id), {
+        status: 'cancelled',
+      });
+      if (resp.code === 200) {
+        updateOrderStatus(order.id, 'cancelled');
+        toast({
+          variant: 'success',
+          title: '✅ Pedido cancelado',
+          description: `El pedido ${order.orderNumber} quedó cancelado.`,
+        });
+      } else {
+        toast({
+          variant: 'warning',
+          title: '❌ No se pudo cancelar',
+          description: apiErrorMessage(resp, 'Intenta de nuevo.'),
+        });
+      }
+    } catch {
+      toast({
+        variant: 'warning',
+        title: '❌ No se pudo cancelar',
+        description: 'No se pudo conectar con el servidor.',
+      });
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-muted/30 relative">
       <aside className="hidden w-[220px] flex-shrink-0 border-r bg-card lg:block h-full overflow-y-auto">
@@ -81,6 +188,7 @@ export function OrdersPage() {
         </div>
 
         <POSLayout
+          wide
           main={
             <div className="space-y-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -133,12 +241,18 @@ export function OrdersPage() {
                 <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-card py-16 text-center">
                   <span className="text-4xl">🧾</span>
                   <p className="mt-4 font-medium">
-                    {orders.length === 0 ? 'Aún no hay pedidos' : 'No hay pedidos con este filtro'}
+                    {loading
+                      ? 'Cargando pedidos…'
+                      : orders.length === 0
+                        ? 'Aún no hay pedidos'
+                        : 'No hay pedidos con este filtro'}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {orders.length === 0
-                      ? 'Crea tu primer pedido con el botón "Crear orden".'
-                      : 'Prueba con otro tag o limpia la búsqueda.'}
+                    {loading
+                      ? 'Consultando el servidor…'
+                      : orders.length === 0
+                        ? 'Crea tu primer pedido con el botón "Crear pedido".'
+                        : 'Prueba con otro tag o limpia la búsqueda.'}
                   </p>
                 </div>
               ) : (
@@ -161,14 +275,28 @@ export function OrdersPage() {
               <div className="shrink-0 border-b p-4">
                 <Button className="w-full gap-2" size="lg" onClick={() => navigate('/pedidos/nuevo')}>
                   <Plus className="h-4 w-4" />
-                  Crear orden
+                  Crear pedido
                 </Button>
               </div>
 
               {/* Detalle del pedido seleccionado */}
               {selectedOrder ? (
                 <div className="min-h-0 flex-1">
-                  <OrderDetailPanel order={selectedOrder} onClose={() => setSelectedId(null)} />
+                  <OrderDetailPanel
+                    order={selectedOrder}
+                    onClose={() => setSelectedId(null)}
+                    onEdit={
+                      !isFinalOrder(selectedOrder)
+                        ? () => navigate(`/pedidos/${selectedOrder.id}/editar`)
+                        : undefined
+                    }
+                    onCancel={
+                      !isFinalOrder(selectedOrder)
+                        ? () => handleCancelOrder(selectedOrder)
+                        : undefined
+                    }
+                    cancelling={cancellingId === selectedOrder.id}
+                  />
                 </div>
               ) : (
                 <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 text-center">
@@ -189,68 +317,3 @@ export function OrdersPage() {
   );
 }
 
-/** Tarjeta de pedido: número, tipo, estado, mesa, cliente y total. */
-function OrderCard({
-  order,
-  selected,
-  onSelect,
-}: {
-  order: Order;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  const units = order.items.reduce((sum, item) => sum + item.quantity, 0);
-
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={cn(
-        'w-full rounded-lg border bg-card p-4 text-left transition-all hover:shadow-md',
-        selected
-          ? 'border-primary ring-2 ring-primary/30'
-          : 'hover:border-primary/50',
-      )}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <span className="text-lg font-bold text-primary">
-          #{order.orderNumber.replace('ORD-', '')}
-        </span>
-        <span className="text-lg font-bold text-foreground">{formatCurrency(order.total)}</span>
-      </div>
-
-      <div className="mt-2 flex flex-wrap gap-2">
-        <Badge
-          variant="outline"
-          className={`px-2 py-1 text-[10px] uppercase font-medium ${ORDER_TYPE_BADGE_CLASSES[order.type]}`}
-        >
-          {ORDER_TYPE_LABELS[order.type]}
-        </Badge>
-        <Badge
-          variant="outline"
-          className={`px-2 py-1 text-[10px] uppercase font-medium ${ORDER_STATUS_BADGE_CLASSES[order.status]}`}
-        >
-          {ORDER_STATUS_LABELS[order.status]}
-        </Badge>
-      </div>
-
-      <div className="mt-3 flex items-center justify-between gap-3 border-t pt-3 text-sm">
-        <div className="min-w-0 space-y-0.5 text-left">
-          <p className="font-medium">Mesa: {order.tableNumber ?? 'Sin mesa'}</p>
-          <p className="truncate text-xs text-muted-foreground">
-            {order.customerName || 'Sin cliente'}
-          </p>
-        </div>
-        <div className="shrink-0 text-right text-xs text-muted-foreground">
-          <p>{units} producto(s)</p>
-          <p>
-            {new Date(order.createdAt).toLocaleTimeString('es-ES', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </p>
-        </div>
-      </div>
-    </button>
-  );
-}

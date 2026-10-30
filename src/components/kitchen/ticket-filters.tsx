@@ -2,8 +2,11 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui';
 import type { OrderType } from '@/types';
 
+/** `'completados'` = pedidos ya listos o entregados (fuera de la cola activa). */
+type TicketFilterType = 'all' | OrderType | 'completados';
+
 interface TicketFilter {
-  type: 'all' | OrderType;
+  type: TicketFilterType;
   label: string;
   count?: number;
 }
@@ -15,7 +18,8 @@ interface TicketFiltersProps {
 }
 
 /**
- * Filter tabs for ticket queue (Todos, Para Llevar, Mesa, Delivery)
+ * Filter tabs for ticket queue (Todos, Para Llevar, Mesa, Delivery,
+ * Listos / Entregados)
  */
 export function TicketFilters({ filters, activeFilter, onFilterChange }: TicketFiltersProps) {
   return (

@@ -1,6 +1,6 @@
 import { CheckCircle, Clock } from 'lucide-react';
 import { Card, Button, Badge } from '@/components/ui';
-import { formatCurrency, formatRelativeTime } from '@/utils';
+import { formatCurrency, formatOrderNumber, formatRelativeTime } from '@/utils';
 import type { Order } from '@/types';
 
 interface DeliveryOrderCardProps {
@@ -29,7 +29,7 @@ export function DeliveryOrderCard({
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
           <span className="text-lg font-bold text-primary">
-            #{order.orderNumber.replace('ORD-', '')}
+            {formatOrderNumber(order.orderNumber)}
           </span>
           {order.status === 'paid' && (
             <Badge variant="success" className="text-xs">Pagado</Badge>

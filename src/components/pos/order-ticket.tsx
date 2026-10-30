@@ -1,5 +1,5 @@
 import { Printer, Banknote, CreditCard, QrCode, Users, X, BedDouble as BedDoubleIcon } from 'lucide-react';
-import { Button, Input, ScrollArea, Badge } from '@/components/ui';
+import { Button, ScrollArea, Badge } from '@/components/ui';
 import { OrderItemRow } from './order-item-row';
 import { formatCurrency } from '@/utils';
 import { useCartStore } from '@/store';
@@ -14,6 +14,11 @@ interface OrderTicketProps {
   onCharge?: () => void;
   /** Si el usuario puede "des-asignar" la mesa del ticket actual (opcional). */
   onClearTable?: () => void;
+  /**
+   * Limpia el ticket completo (mesa + pedido cargado). Se muestra como botón
+   * en la cabecera cuando el ticket contiene un pedido cargado desde la caja.
+   */
+  onClearTicket?: () => void;
 }
 
 const paymentMethods: { method: PaymentMethod; label: string; icon: React.ReactNode }[] = [
@@ -27,6 +32,13 @@ const TABLE_STATUS_LABEL: Record<FloorTableStatus, { label: string; className: s
   occupied: { label: 'Ocupada', className: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20' },
 };
 
+/** Propina voluntaria: sin propina por defecto + los porcentajes ofrecidos. */
+const TIP_OPTIONS: { rate: number; label: string }[] = [
+  { rate: 0, label: 'Sin propina' },
+  { rate: 0.05, label: '5%' },
+  { rate: 0.1, label: '10%' },
+];
+
 /**
  * Order ticket sidebar showing cart items, totals, and payment options.
  *
@@ -39,24 +51,31 @@ export function OrderTicket({
   onSave,
   onCharge,
   onClearTable,
+  onClearTicket,
 }: OrderTicketProps) {
   const {
     items,
-    customerName,
     paymentMethod,
-    setCustomerName,
+    loadedOrder,
+    tipRate,
     setPaymentMethod,
-    updateQuantity,
-    removeItem,
+    setTipRate,
     getSubtotal,
     getTax,
-    getTotal,
+    getDiscount,
+    getTip,
+    getPayable,
   } = useCartStore();
 
   const subtotal = getSubtotal();
   const tax = getTax();
-  const total = getTotal();
+  const discount = getDiscount();
+  const tip = getTip();
+  /** Total a cobrar: incluye la propina voluntaria. */
+  const payable = getPayable();
   const isEmpty = items.length === 0;
+  /** Ticket con un pedido real cargado: sus totales no llevan el IVA del ticket nuevo. */
+  const isLoadedOrder = loadedOrder !== null;
 
   const displayTable = table;
 
@@ -109,23 +128,27 @@ export function OrderTicket({
             {orderNumber}
           </p>
         </div>
-        <Button variant="ghost" size="icon">
-          <Printer className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          {onClearTicket && isLoadedOrder && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClearTicket}
+              type="button"
+              aria-label="Limpiar ticket"
+              title="Limpiar ticket"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" aria-label="Imprimir ticket">
+            <Printer className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      {/* Customer name input */}
-      <div className="border-b px-4 py-3">
-        <Input
-          placeholder="Nombre del cliente (Opcional)"
-          value={customerName}
-          onChange={(e) => setCustomerName(e.target.value)}
-          className="text-sm"
-        />
-      </div>
-
-      {/* Order items */}
-      <ScrollArea className="flex-1 px-4">
+      {/* Order items (min-h-0: permite que se encoja y totales/acciones siempre se vean) */}
+      <ScrollArea className="min-h-0 flex-1 px-4">
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <span className="text-4xl">🛒</span>
@@ -142,8 +165,7 @@ export function OrderTicket({
               <OrderItemRow
                 key={item.id}
                 item={item}
-                onUpdateQuantity={updateQuantity}
-                onRemove={removeItem}
+                readOnly
               />
             ))}
           </div>
@@ -152,19 +174,70 @@ export function OrderTicket({
 
       {/* Totals & Actions */}
       <div className="mt-auto border-t bg-card">
+        {/* Propina voluntaria */}
+        <div className="space-y-2 border-b px-4 py-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Propina</span>
+            <span className="text-xs text-muted-foreground">Voluntaria</span>
+          </div>
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Propina">
+            {TIP_OPTIONS.map((option) => {
+              const isActive = tipRate === option.rate;
+              return (
+                <label
+                  key={option.rate}
+                  className={cn(
+                    'flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors',
+                    isActive
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="ticket-tip"
+                    className="h-3.5 w-3.5 accent-primary"
+                    checked={isActive}
+                    onChange={() => setTipRate(option.rate)}
+                  />
+                  {option.label}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Totals */}
         <div className="space-y-2 px-4 py-3">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Subtotal</span>
             <span>{formatCurrency(subtotal)}</span>
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Impuestos (10%)</span>
-            <span>{formatCurrency(tax)}</span>
-          </div>
+          {!isLoadedOrder && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Impuestos (10%)</span>
+              <span>{formatCurrency(tax)}</span>
+            </div>
+          )}
+          {/* Pedido real cargado: sin IVA propio, con su descuento del backend */}
+          {isLoadedOrder && discount > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Descuento</span>
+              <span className="text-destructive">−{formatCurrency(discount)}</span>
+            </div>
+          )}
+          {tip > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">
+                Propina ({Math.round(tipRate * 100)}%)
+              </span>
+              <span>{formatCurrency(tip)}</span>
+            </div>
+          )}
+          {/* Total a cobrar = total (facturable) + propina voluntaria */}
           <div className="flex justify-between text-lg font-bold">
-            <span>Total</span>
-            <span className="text-primary">{formatCurrency(total)}</span>
+            <span>Total a pagar</span>
+            <span className="text-primary">{formatCurrency(payable)}</span>
           </div>
         </div>
 

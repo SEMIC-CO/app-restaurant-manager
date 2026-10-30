@@ -1,4 +1,4 @@
-import { BedDouble, Clock, Users, X } from 'lucide-react';
+import { Ban, BedDouble, Clock, Pencil, Users, X } from 'lucide-react';
 import { Badge, Button, ScrollArea } from '@/components/ui';
 import {
   ORDER_STATUS_BADGE_CLASSES,
@@ -6,19 +6,32 @@ import {
   ORDER_TYPE_BADGE_CLASSES,
   ORDER_TYPE_LABELS,
 } from './order-labels';
-import { formatCurrency } from '@/utils';
+import { formatCurrency, formatOrderNumber, formatTableLabel } from '@/utils';
 import type { Order } from '@/types';
 
 interface OrderDetailPanelProps {
   order: Order;
   onClose?: () => void;
+  /** Abrir la vista de edición del pedido (órdenes no finalizadas). */
+  onEdit?: () => void;
+  /** Cancelar el pedido (con confirmación en el caller). */
+  onCancel?: () => void | Promise<void>;
+  /** Petición de cancelación en curso. */
+  cancelling?: boolean;
 }
 
 /**
  * Detalle de un pedido en la sección derecha de Pedidos:
- * cabecera con badges, datos generales, items y totales.
+ * cabecera con badges, acciones editar/cancelar, datos generales, items y
+ * totales.
  */
-export function OrderDetailPanel({ order, onClose }: OrderDetailPanelProps) {
+export function OrderDetailPanel({
+  order,
+  onClose,
+  onEdit,
+  onCancel,
+  cancelling = false,
+}: OrderDetailPanelProps) {
   const units = order.items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
@@ -27,7 +40,7 @@ export function OrderDetailPanel({ order, onClose }: OrderDetailPanelProps) {
       <div className="flex shrink-0 items-center justify-between border-b px-4 py-3">
         <div>
           <h2 className="text-lg font-bold">Detalle del pedido</h2>
-          <p className="text-sm text-muted-foreground">#{order.orderNumber.replace('ORD-', '')}</p>
+          <p className="text-sm text-muted-foreground">{formatOrderNumber(order.orderNumber)}</p>
         </div>
         {onClose && (
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose} aria-label="Cerrar detalle">
@@ -35,6 +48,35 @@ export function OrderDetailPanel({ order, onClose }: OrderDetailPanelProps) {
           </Button>
         )}
       </div>
+
+      {/* Acciones del pedido */}
+      {(onEdit || onCancel) && (
+        <div className="flex shrink-0 gap-2 border-b px-4 py-2">
+          {onEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 gap-1.5"
+              onClick={onEdit}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Editar
+            </Button>
+          )}
+          {onCancel && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 gap-1.5 text-destructive hover:border-destructive/40 hover:text-destructive"
+              onClick={() => void onCancel()}
+              disabled={cancelling}
+            >
+              <Ban className="h-3.5 w-3.5" />
+              {cancelling ? 'Cancelando…' : 'Cancelar pedido'}
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Datos generales + items */}
       <ScrollArea className="min-h-0 flex-1 px-4">
@@ -59,7 +101,7 @@ export function OrderDetailPanel({ order, onClose }: OrderDetailPanelProps) {
               <BedDouble className="h-4 w-4 shrink-0 text-primary" />
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Mesa</p>
-                <p className="truncate font-medium">{order.tableNumber ?? 'Sin mesa'}</p>
+                <p className="truncate font-medium">{formatTableLabel(order.tableNumber)}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2">
@@ -92,7 +134,7 @@ export function OrderDetailPanel({ order, onClose }: OrderDetailPanelProps) {
             {order.items.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between gap-3 rounded-lg border bg-card px-3 py-2 text-sm"
+                className="flex items-center justify-between gap-3 rounded-lg border bg-card px-3 py-2 text-[13px]"
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{item.productName || `Producto ${item.productId}`}</p>

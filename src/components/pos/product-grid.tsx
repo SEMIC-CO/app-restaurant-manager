@@ -12,15 +12,32 @@ interface ProductGridProps {
   /** Callback del POS (caja): agrega el producto al carrito. */
   onAddToCart?: (product: Product) => void;
   loading?: boolean;
+  /**
+   * Densidad alta (Crear Pedido): más columnas, gaps menores y cards
+   * compactas. La Caja usa la densidad normal por defecto.
+   */
+  dense?: boolean;
 }
 
 /**
  * Responsive grid of product cards (POS / Caja / Pedidos).
  */
-export function ProductGrid({ products, children, onAddToCart, loading }: ProductGridProps) {
+export function ProductGrid({
+  products,
+  children,
+  onAddToCart,
+  loading,
+  dense,
+}: ProductGridProps) {
+  // Ancho de card ≈310px fijo (auto-fill con tope): caben las que quepan en
+  // el contenedor y en pantallas angostas encoge sin desbordar.
+  const columns = dense
+    ? 'grid-cols-[repeat(auto-fill,minmax(0,310px))] gap-3'
+    : 'grid-cols-[repeat(auto-fill,minmax(0,310px))] gap-4';
+
   if (loading) {
     return (
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+      <div className={`grid ${columns}`}>
         {Array.from({ length: 8 }).map((_, i) => (
           <div
             key={i}
@@ -43,7 +60,7 @@ export function ProductGrid({ products, children, onAddToCart, loading }: Produc
   }
 
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+    <div className={`grid ${columns}`}>
       {products.map((product) =>
         children ? (
           <div key={product.id}>{children(product)}</div>
@@ -51,9 +68,10 @@ export function ProductGrid({ products, children, onAddToCart, loading }: Produc
           <ProductCard
             key={product.id}
             product={product}
+            dense={dense}
             onAddToCart={onAddToCart ?? (() => {})}
           />
-        )
+        ),
       )}
     </div>
   );

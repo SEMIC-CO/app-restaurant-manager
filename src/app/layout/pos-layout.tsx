@@ -1,8 +1,14 @@
 import type { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 
 interface POSLayoutProps {
   main: ReactNode;
   sidebar: ReactNode;
+  /**
+   * Banner derecho un poco más ancho (Pedidos: listado y creación).
+   * La Caja mantiene el ancho estándar de 380px.
+   */
+  wide?: boolean;
 }
 
 /**
@@ -11,16 +17,26 @@ interface POSLayoutProps {
  * El header (AppHeader) lo pone el wrapper superior (TablesPage / POSPage)
  * para evitar duplicados cuando la página ya trae sidebar izq.
  */
-export function POSLayout({ main, sidebar }: POSLayoutProps) {
+export function POSLayout({ main, sidebar, wide = false }: POSLayoutProps) {
   return (
     <div className="flex flex-1 overflow-hidden min-h-0 relative">
       {/* Product grid area */}
-      <main className="flex-1 overflow-auto p-6 lg:mr-[380px] min-w-0">
+      <main
+        className={cn(
+          'flex-1 overflow-auto p-6 min-w-0',
+          wide ? 'lg:mr-[420px]' : 'lg:mr-[380px]',
+        )}
+      >
         {main}
       </main>
 
       {/* Order ticket sidebar - fixed on desktop right side, below AppHeader (60px) */}
-      <aside className="fixed bottom-0 right-0 top-[60px] hidden w-[380px] border-l bg-card lg:block z-40">
+      <aside
+        className={cn(
+          'fixed bottom-0 right-0 top-[60px] hidden border-l bg-card lg:block z-40',
+          wide ? 'w-[420px]' : 'w-[380px]',
+        )}
+      >
         {sidebar}
       </aside>
     </div>

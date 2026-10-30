@@ -22,6 +22,8 @@ export interface OrderItem {
   id: string;
   productId: string;
   productName: string;
+  /** Imagen miniatura del producto (si la tiene); se usa en las filas del carrito. */
+  productImage?: string;
   quantity: number;
   unitPrice: number;
   subtotal: number;
@@ -37,8 +39,11 @@ export interface Order {
   total: number;
   status: OrderStatus;
   type: OrderType;
-  tableNumber?: number;
+  /** Nombre de la mesa ("Mesa 2") o legado numérico ("5"). Ver `formatTableLabel`. */
+  tableNumber?: string;
   customerName?: string;
+  /** Notas libres del pedido (columna `orders.notes`). */
+  notes?: string;
   createdAt: Date;
   updatedAt: Date;
   estimatedTime?: number; // in minutes
@@ -320,8 +325,57 @@ export interface ListCategoriesParams {
   active?: boolean;
 }
 
+// Productos (API /products) — alcance sede del JWT
+/**
+ * Producto del backend (`products`). A diferencia del tipo `Product` del
+ * catálogo mock, los ids son numéricos y la imagen se guarda como **ruta
+ * relativa** en `imageUrl` (`productos/prod-<uuid>.webp`): para mostrarla usa
+ * `resolveStorageUrl()`.
+ */
+export interface ApiProduct {
+  id: number;
+  name: string;
+  categoryId: number;
+  price: number;
+  cost: number;
+  available: boolean | null;
+  description: string | null;
+  imageUrl: string | null;
+  headquarterId: number | null;
+  userId: number | null;
+}
+
+export interface CreateProductPayload {
+  name: string;
+  categoryId: number;
+  price: number;
+  cost: number;
+  available?: boolean;
+  description?: string;
+  /** URL externa opcional; la imagen del formulario viaja aparte (multipart). */
+  imageUrl?: string;
+}
+
+export interface UpdateProductPayload {
+  name?: string;
+  categoryId?: number;
+  price?: number;
+  cost?: number;
+  available?: boolean;
+  description?: string;
+  imageUrl?: string;
+}
+
+export interface ListProductsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  categoryId?: number;
+  available?: boolean;
+}
+
 // Órdenes (API /orders)
-export type ApiOrderStatus = 'pending' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
+export type ApiOrderStatus = 'pending' | 'preparing' | 'ready' | 'delivered' | 'paid' | 'cancelled';
 
 export interface ApiOrderItem {
   id: number | null;
@@ -346,6 +400,11 @@ export interface ApiOrder {
   headquarterId: number | null;
   userId: number | null;
   idTable: number | null;
+  /** Etiqueta del tipo: 'Mesa' | 'Para Llevar' | 'Domicilio'. */
+  orderType?: string;
+  /** Entrega a domicilio (solo presentes en ese tipo de orden). */
+  address?: string | null;
+  customerPhone?: string | null;
   items: ApiOrderItem[];
 }
 
@@ -366,16 +425,118 @@ export interface CreateOrderPayload {
   notes?: string;
   items: { productId: number; quantity: number }[];
   orderType?: OrderType;
+  /** Opcionales; se envían con `orderType: 'domicilio'` (vacío → null). */
+  address?: string;
+  customerPhone?: string;
 }
 
 export interface UpdateOrderPayload {
   status?: ApiOrderStatus;
   customerName?: string;
   tableNumber?: string;
-  idTable?: number;
+  /** `null` limpia la mesa (cambio de tipo de pedido). */
+  idTable?: number | null;
   discount?: number;
   paymentMethod?: string;
   notes?: string;
+  orderType?: OrderType;
+  address?: string;
+  customerPhone?: string;
+}
+
+/** Estado de la factura (`invoices.status`): pendiente de emitir, emitida (DIAN) o anulada. */
+export type ApiInvoiceStatus = 'pending' | 'emitted' | 'cancelled';
+
+/** Método de pago que acepta `invoices.payment_method` (BD: CHECK propio). */
+export type InvoicePaymentMethod = 'Cash' | 'Card' | 'Transfer';
+
+/** Factura generada (`POST /invoices`, `GET /invoices/:id`). */
+export interface ApiInvoice {
+  id: number;
+  orderId: number;
+  invoiceNumber: string;
+  customerName: string | null;
+  customerIdentification: string | null;
+  customerEmail: string | null;
+  invoiceDatetime: string;
+  subtotal: number;
+  taxes: number;
+  discount: number;
+  total: number;
+  /** Propina voluntaria: no forma parte de `total`. */
+  voluntaryTip: number;
+  paymentMethod: string | null;
+  status: ApiInvoiceStatus;
+  companyId: number | null;
+  userId: number | null;
+}
+
+/** Payload de `POST /invoices` (solo `orderId` es obligatorio). */
+export interface CreateInvoicePayload {
+  orderId: number;
+  customerName?: string;
+  customerIdentification?: string;
+  customerEmail?: string;
+  taxes?: number;
+  voluntaryTip?: number;
+  paymentMethod?: InvoicePaymentMethod;
+  status?: ApiInvoiceStatus;
+}
+
+/** Query de `GET /invoices` (fechas en formato `AAAA-MM-DD`). */
+export interface ListInvoicesParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: ApiInvoiceStatus;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+// ─── Reportes (GET /reports/sales) ───────────────────────────────────────────
+
+/** Producto con sus ventas en el período del reporte. */
+export interface ReportProductSales {
+  productId: number;
+  name: string;
+  description: string | null;
+  categoryId: number | null;
+  categoryName: string | null;
+  categoryColor: string | null;
+  /** Unidades vendidas. */
+  units: number;
+  /** Ingresos (Σ subtotales de línea). */
+  revenue: number;
+}
+
+/** Participación de una categoría sobre las unidades vendidas del período. */
+export interface ReportCategoryMix {
+  categoryId: number | null;
+  name: string;
+  color: string | null;
+  units: number;
+  /** Porcentaje (0–100). */
+  percentage: number;
+}
+
+/** Reporte de ventas de la sede (`GET /reports/sales`). */
+export interface SalesReport {
+  range: {
+    dateFrom: string | null;
+    dateTo: string | null;
+  };
+  summary: {
+    /** Pedidos no cancelados creados en el período. */
+    totalOrders: number;
+    /** Unidades vendidas en el período. */
+    totalUnits: number;
+    topProduct: ReportProductSales | null;
+    lowestProduct: ReportProductSales | null;
+  };
+  /** Ranking y detalle: productos con ventas, de mayor a menor. */
+  products: ReportProductSales[];
+  /** Distribución de unidades por categoría. */
+  categoryMix: ReportCategoryMix[];
 }
 
 // Empleados (API /employees) — alcance sede del JWT
