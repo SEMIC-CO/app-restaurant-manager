@@ -4,6 +4,7 @@ export { headquarterService } from './headquarter-service';
 export { employeeService } from './employee-service';
 export { paymentEmployeeService } from './payment-employee-service';
 export { payrollAdjustmentService } from './payroll-adjustment-service';
+export { payrollService } from './payroll-service';
 export { locationService } from './location-service';
 export { sectionService } from './section-service';
 export { tableService } from './table-service';

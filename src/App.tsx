@@ -21,6 +21,8 @@ import {
   TablesListPage,
   EmployeesListPage,
   EmployeePayrollPage,
+  NominaConfigPage,
+  NominaPaymentsPage,
   AlertDemoPage,
   OrdersPage,
   OrderCreatePage,
@@ -77,6 +79,8 @@ function App() {
             path="/configuracion/empleados/:employeeId/nomina"
             element={<EmployeePayrollPage />}
           />
+          <Route path="/configuracion/nomina" element={<NominaConfigPage />} />
+          <Route path="/configuracion/nomina/pagos" element={<NominaPaymentsPage />} />
           <Route path="/configuracion/usuarios" element={<UsersListPage />} />
           <Route path="/configuracion/usuarios/nuevo" element={<UserCreatePage />} />
 

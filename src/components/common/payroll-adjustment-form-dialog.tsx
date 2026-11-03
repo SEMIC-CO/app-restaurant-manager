@@ -10,7 +10,6 @@ import {
   DialogDescription,
   DialogFooter,
   Button,
-  Input,
   Label,
   Select,
   SelectContent,
@@ -18,8 +17,16 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea,
+  MoneyInput,
 } from '@/components/ui';
 import type { ApiPayrollAdjustment, ApiPayrollAdjustmentStatus } from '@/types';
+
+/**
+ * Conceptos fijos del ajuste. El backend clasifica por la palabra clave del
+ * concepto (`bono` suma; `adelanto`/`descuento` restan), así que con estos
+ * valores la dirección ya no depende del signo del monto.
+ */
+const CONCEPT_OPTIONS = ['Adelanto', 'Descuento', 'Bono'] as const;
 
 const payrollAdjustmentSchema = z.object({
   concept: z
@@ -105,12 +112,32 @@ export function PayrollAdjustmentFormDialog({
     : ['EARRING', 'APPLIED'];
 
   const status = useWatch({ control, name: 'status' });
+  const concept = useWatch({ control, name: 'concept' });
+
+  // Ajustes antiguos con texto libre ("Adelanto quincenal"): se conserva como
+  // opción extra al editar para no perder ni cambiar el dato guardado.
+  const conceptOptions = React.useMemo(() => {
+    const options: string[] = [...CONCEPT_OPTIONS];
+    if (adjustment?.concept && !options.includes(adjustment.concept)) {
+      options.push(adjustment.concept);
+    }
+    return options;
+  }, [adjustment]);
 
   const handleFormSubmit = async (data: PayrollAdjustmentFormData) => {
+    // El concepto ya define la dirección (bono suma, adelanto/descuento resta),
+    // así que el signo se normaliza para dejar los datos como siempre:
+    // adelantos y descuentos en negativo, bonos en positivo.
+    const normalizedValue =
+      data.concept === 'Bono'
+        ? Math.abs(data.adjustmentValue)
+        : -Math.abs(data.adjustmentValue);
+
     try {
       await onSubmit({
         ...data,
         concept: data.concept.trim(),
+        adjustmentValue: normalizedValue,
         description: data.description.trim(),
       });
       onOpenChange(false);
@@ -134,11 +161,23 @@ export function PayrollAdjustmentFormDialog({
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="adjustment-concept">Concepto *</Label>
-            <Input
-              id="adjustment-concept"
-              placeholder="Adelanto quincenal"
-              {...register('concept')}
-            />
+            <Select
+              value={concept}
+              onValueChange={(value) =>
+                setValue('concept', value, { shouldValidate: true })
+              }
+            >
+              <SelectTrigger id="adjustment-concept">
+                <SelectValue placeholder="Selecciona el concepto" />
+              </SelectTrigger>
+              <SelectContent>
+                {conceptOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {errors.concept && (
               <p className="text-xs text-red-500">{errors.concept.message}</p>
             )}
@@ -150,23 +189,21 @@ export function PayrollAdjustmentFormDialog({
               control={control}
               name="adjustmentValue"
               render={({ field }) => (
-                <Input
+                <MoneyInput
                   id="adjustment-value"
-                  type="number"
-                  step="0.01"
-                  inputMode="decimal"
-                  value={Number.isFinite(field.value) ? field.value : ''}
-                  onChange={(event) =>
-                    field.onChange(
-                      event.target.value === '' ? 0 : Number(event.target.value),
-                    )
+                  placeholder="0.00"
+                  value={Math.abs(Number.isFinite(field.value) ? field.value : 0)}
+                  onValueChange={(value) =>
+                    field.onChange(Number.isNaN(value) ? 0 : Math.abs(value))
                   }
                 />
               )}
             />
             <p className="text-xs text-muted-foreground">
-              Positivo suma al pago (bono/devengo); negativo lo descuenta
-              (adelanto/descuento). No puede ser 0.
+              {concept === 'Bono'
+                ? 'Suma al pago del empleado.'
+                : 'Resta al pago del empleado (se descuenta).'}
+              {' '}No puede ser 0.
             </p>
             {errors.adjustmentValue && (
               <p className="text-xs text-red-500">{errors.adjustmentValue.message}</p>

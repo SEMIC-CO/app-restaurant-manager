@@ -10,6 +10,12 @@ export type {
   ProductFormSubmit,
 } from './product-form-dialog';
 export { CustomerFormDialog } from './customer-form-dialog';
+export { ConfirmDialog, ConfirmHighlight } from './confirm-dialog';
+export { PaymentHistoryDialog } from './payment-history-dialog';
+export {
+  PayrollTemplateFormDialog,
+  type PayrollTemplateFormData,
+} from './payroll-template-form-dialog';
 export { ConfigSidebar } from './config-sidebar';
 export { MobileSidebarDrawer } from './mobile-sidebar-drawer';
 export { ProtectedRoute } from './protected-route';

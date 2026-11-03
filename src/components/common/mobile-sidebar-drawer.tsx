@@ -14,6 +14,7 @@ import {
   Grid3x3,
   Banknote,
   Armchair,
+  Wallet,
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -92,6 +93,11 @@ const configNavItems: NavItem[] = [
     to: '/configuracion/usuarios',
     label: 'Usuarios',
     icon: <Users className="h-5 w-5" />,
+  },
+  {
+    to: '/configuracion/nomina',
+    label: 'Nómina',
+    icon: <Wallet className="h-5 w-5" />,
   },
 ];
 

@@ -684,3 +684,131 @@ export interface ListPayrollAdjustmentsParams {
   limit?: number;
   status?: ApiPayrollAdjustmentStatus;
 }
+
+// Nómina: configuración de pagos por empleado (API /payroll-templates)
+/** Frecuencia de pago configurada en la plantilla de un empleado. */
+export type ApiPayrollFrequency = 'DAILY' | 'WEEKLY' | 'FORTNIGHTLY' | 'MONTHLY';
+
+export const PAYROLL_FREQUENCY_LABELS: Record<ApiPayrollFrequency, string> = {
+  DAILY: 'Diaria',
+  WEEKLY: 'Semanal',
+  FORTNIGHTLY: 'Quincenal',
+  MONTHLY: 'Mensual',
+};
+
+/** Configuración de pago de un empleado (un único registro por empleado). */
+export interface ApiPayrollTemplate {
+  frequency: ApiPayrollFrequency;
+  /** Monto base (subtotal) pagado en cada período. */
+  baseAmount: number;
+  notes: string | null;
+  active: boolean;
+}
+
+/** Fila del listado: empleado + su configuración (`null` si no tiene). */
+export interface ApiPayrollTemplateRow {
+  employeeId: number;
+  employeeName: string;
+  employeeActive: boolean;
+  template: ApiPayrollTemplate | null;
+}
+
+export interface UpsertPayrollTemplatePayload {
+  frequency: ApiPayrollFrequency;
+  baseAmount: number;
+  notes?: string | null;
+  active?: boolean;
+}
+
+/** Ajuste aplicado a un cálculo previo de nómina. */
+export interface PreviewAdjustmentRow {
+  id: number;
+  concept: string;
+  adjustmentValue: number;
+}
+
+/** Fila del cálculo previo: lo que se sugerirá pagar a un empleado. */
+export interface ApiPayrollPreviewRow {
+  employeeId: number;
+  employeeName: string;
+  frequency: ApiPayrollFrequency;
+  /** Período PROPIO del empleado, derivado de su frecuencia. */
+  periodStartDate: string;
+  periodEndDate: string;
+  subtotal: number;
+  bonuses: number;
+  advances: number;
+  deductions: number;
+  totalPaid: number;
+  adjustments: PreviewAdjustmentRow[];
+  /**
+   * `true` si ya existe un pago para este empleado en SU período: se muestra
+   * marcado como pagado y no se vuelve a pagar.
+   */
+  alreadyPaid: boolean;
+}
+
+export interface PreviewPayrollPayload {
+  /** Fecha de referencia: cada empleado resuelve su período a partir de ella. */
+  referenceDate: string;
+  /** Restringe el cálculo a estos empleados; si se omite, a todos. */
+  employeeIds?: number[];
+}
+
+// Pago de nómina en lote (API /payments-employees/batch)
+export interface BatchPaymentItem {
+  employeeId: number;
+  /** Período PROPIO del empleado; si falta, usa el rango general del lote. */
+  periodStartDate?: string;
+  periodEndDate?: string;
+  subtotal: number;
+  totalAdvances: number;
+  totalDeductions: number;
+  totalPaid: number;
+  notes?: string | null;
+}
+
+export interface CreatePaymentsBatchPayload {
+  /** Rango general: respaldo para las filas que no traen sus propias fechas. */
+  periodStartDate?: string;
+  periodEndDate?: string;
+  paymentDate?: string;
+  status?: 'DRAFT' | 'PAID';
+  notes?: string | null;
+  items: BatchPaymentItem[];
+}
+
+export interface BatchPaymentSkipped {
+  employeeId: number;
+  reason: string;
+}
+
+export interface BatchPaymentResult {
+  created: ApiPaymentEmployee[];
+  skipped: BatchPaymentSkipped[];
+  /** Cantidad de ajustes pendientes pasados a `APPLIED`. */
+  adjustmentsApplied: number;
+}
+
+/**
+ * Fila del historial de pagos de la sede (`GET /payments-employees/history`):
+ * el pago con el nombre de quien lo recibió.
+ */
+export interface ApiPaymentHistoryRow extends ApiPaymentEmployee {
+  employeeName: string;
+  /**
+   * Frecuencia derivada del ancho del período: 'Diaria' | 'Semanal' |
+   * 'Quincenal' | 'Mensual', o `null` si el rango no encaja con ninguna.
+   */
+  frequencyLabel: string | null;
+}
+
+export interface ListPaymentHistoryParams {
+  page?: number;
+  limit?: number;
+  status?: ApiPaymentEmployeeStatus;
+  /** Filtro sobre `periodStartDate` (inclusive). */
+  dateFrom?: string;
+  /** Filtro sobre `periodStartDate` (inclusive). */
+  dateTo?: string;
+}

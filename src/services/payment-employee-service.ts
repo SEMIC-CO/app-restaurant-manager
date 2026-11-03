@@ -3,7 +3,9 @@ import { buildQuery } from './query-utils';
 import type {
   ApiResponse,
   ApiPaymentEmployee,
+  ApiPaymentHistoryRow,
   CreatePaymentEmployeePayload,
+  ListPaymentHistoryParams,
   ListPaymentEmployeesParams,
   Paginated,
   UpdatePaymentEmployeePayload,
@@ -34,6 +36,25 @@ class PaymentEmployeeService {
         return apiFetch<ApiResponse<ApiPaymentEmployee>>(`payments-employees/${id}`, {
             method: 'GET',
         });
+    }
+
+    /**
+     * Historial de pagos de la SEDE (todos los empleados), con filtros por
+     * estado y rango de período. Devuelve el nombre del empleado.
+     */
+    async history(
+        params: ListPaymentHistoryParams = {},
+    ): Promise<ApiResponse<Paginated<ApiPaymentHistoryRow>>> {
+        return apiFetch<ApiResponse<Paginated<ApiPaymentHistoryRow>>>(
+            `payments-employees/history${buildQuery({
+                page: params.page ?? 1,
+                limit: params.limit ?? 20,
+                status: params.status,
+                dateFrom: params.dateFrom,
+                dateTo: params.dateTo,
+            })}`,
+            { method: 'GET' },
+        );
     }
 
     async create(payload: CreatePaymentEmployeePayload): Promise<ApiResponse<ApiPaymentEmployee>> {

@@ -14,6 +14,7 @@ import {
   Banknote,
   Armchair,
   Briefcase,
+  Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -95,6 +96,11 @@ const configNavItems: NavItem[] = [
     to: '/configuracion/empleados',
     label: 'Empleados',
     icon: <Briefcase className="h-5 w-5" />,
+  },
+  {
+    to: '/configuracion/nomina',
+    label: 'Nómina',
+    icon: <Wallet className="h-5 w-5" />,
   },
 ];
 
