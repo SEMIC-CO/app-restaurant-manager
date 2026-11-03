@@ -15,6 +15,7 @@ import {
   Armchair,
   Briefcase,
   Wallet,
+  IdCard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -88,11 +89,6 @@ const configNavItems: NavItem[] = [
     icon: <Package className="h-5 w-5" />,
   },
   {
-    to: '/configuracion/usuarios',
-    label: 'Usuarios',
-    icon: <Users className="h-5 w-5" />,
-  },
-  {
     to: '/configuracion/empleados',
     label: 'Empleados',
     icon: <Briefcase className="h-5 w-5" />,
@@ -101,6 +97,20 @@ const configNavItems: NavItem[] = [
     to: '/configuracion/nomina',
     label: 'Nómina',
     icon: <Wallet className="h-5 w-5" />,
+  },
+];
+
+/** Módulos del bloque SISTEMA: usuarios, perfiles y configuración general. */
+const systemNavItems: NavItem[] = [
+  {
+    to: '/configuracion/usuarios',
+    label: 'Usuarios',
+    icon: <Users className="h-5 w-5" />,
+  },
+  {
+    to: '/configuracion/perfiles',
+    label: 'Perfiles',
+    icon: <IdCard className="h-5 w-5" />,
   },
 ];
 
@@ -147,6 +157,7 @@ export function ConfigSidebar() {
           <p className="px-3 pb-2 text-xs font-semibold text-muted-foreground">
             SISTEMA
           </p>
+          {systemNavItems.map(renderNavItem)}
           <NavLink
             to="/configuracion/sistema"
             className={({ isActive }) =>

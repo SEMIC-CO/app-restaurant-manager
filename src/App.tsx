@@ -23,6 +23,7 @@ import {
   EmployeePayrollPage,
   NominaConfigPage,
   NominaPaymentsPage,
+  ProfilesListPage,
   AlertDemoPage,
   OrdersPage,
   OrderCreatePage,
@@ -83,6 +84,11 @@ function App() {
           <Route path="/configuracion/nomina/pagos" element={<NominaPaymentsPage />} />
           <Route path="/configuracion/usuarios" element={<UsersListPage />} />
           <Route path="/configuracion/usuarios/nuevo" element={<UserCreatePage />} />
+          <Route
+            path="/configuracion/usuarios/editar/:userId"
+            element={<UserCreatePage />}
+          />
+          <Route path="/configuracion/perfiles" element={<ProfilesListPage />} />
 
           {/* Demo */}
           <Route path="/demo/alerts" element={<AlertDemoPage />} />

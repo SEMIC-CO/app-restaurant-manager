@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Card,
   CardContent,
@@ -14,73 +14,276 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-  Switch,
 } from '@/components/ui';
 import { ConfigLayout } from '@/app/layout';
 import { ConfigSidebar } from '@/components/common';
-import { UserPlus, ArrowLeft } from 'lucide-react';
+import { toast } from '@/hooks';
+import {
+  headquarterService,
+  profileService,
+  userService,
+} from '@/services';
+import { useAuthStore } from '@/store';
+import { Loader2, ArrowLeft, UserPlus, Save } from 'lucide-react';
 
-const userSchema = z.object({
-  fullName: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
-  email: z.string().email('Correo electrónico inválido'),
-  phone: z.string().min(8, 'El teléfono debe tener al menos 8 dígitos'),
-  role: z.enum(['admin', 'manager', 'cashier', 'kitchen', 'delivery']),
-  username: z.string().min(4, 'El usuario debe tener al menos 4 caracteres'),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
-  confirmPassword: z.string(),
-  isActive: z.boolean(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'Las contraseñas no coinciden',
-  path: ['confirmPassword'],
-});
+/** Selector de Radix no admite `value=""`: se usa esta marca para "sin sede". */
+const NO_VALUE = 'none';
 
-type UserFormData = z.infer<typeof userSchema>;
+const buildUserSchema = (isEditing: boolean) => {
+  const schema = z.object({
+    name: z
+      .string()
+      .trim()
+      .min(3, 'El nombre debe tener al menos 3 caracteres')
+      .max(255, 'El nombre no puede superar los 255 caracteres'),
+    email: z
+      .string()
+      .trim()
+      .min(1, 'El correo es obligatorio')
+      .max(255, 'El correo no puede superar los 255 caracteres')
+      .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Correo electrónico inválido'),
+    telephone: z
+      .string()
+      .max(15, 'El teléfono no puede superar los 15 caracteres'),
+    profileId: z
+      .number({ message: 'Selecciona un perfil' })
+      .min(1, 'Selecciona un perfil'),
+    headquarterId: z
+      .number({ message: 'Selecciona una sede' })
+      .min(1, 'Selecciona una sede'),
+    // En creación es obligatoria (backend: 8–60); en edición, vacío = no cambiar.
+    password: z.string(),
+    confirmPassword: z.string(),
+  });
 
-const roles = [
-  { id: 'admin', name: 'Administrador', description: 'Acceso total al sistema' },
-  { id: 'manager', name: 'Gerente', description: 'Gestión de productos y reportes' },
-  { id: 'cashier', name: 'Cajero', description: 'Punto de venta y facturación' },
-  { id: 'kitchen', name: 'Cocina', description: 'Visualización de pedidos' },
-  { id: 'delivery', name: 'Delivery', description: 'Control de entregas' },
-];
+  return schema
+    .refine((data) => data.password === data.confirmPassword, {
+      message: 'Las contraseñas no coinciden',
+      path: ['confirmPassword'],
+    })
+    .refine(
+      (data) =>
+        (isEditing && data.password === '') || data.password.length >= 8,
+      {
+        message: 'La contraseña debe tener al menos 8 caracteres',
+        path: ['password'],
+      },
+    )
+    .refine((data) => data.password.length <= 60, {
+      message: 'La contraseña no puede superar los 60 caracteres',
+      path: ['password'],
+    });
+};
 
+type UserFormData = z.infer<ReturnType<typeof buildUserSchema>>;
+
+/**
+ * Crea (`/configuracion/usuarios/nuevo`) o edita
+ * (`/configuracion/usuarios/editar/:userId`) un usuario real del backend.
+ *
+ * Reemplaza los roles hardcodeados: el **perfil** viene de `GET /profiles` y
+ * la **sede** de `GET /headquarters` (ambas obligatorias en `CreateUserDto`).
+ * En edición la contraseña es opcional: si se deja vacía no cambia.
+ */
 export function UserCreatePage() {
   const navigate = useNavigate();
+  const params = useParams<{ userId: string }>();
+  const userId = params.userId ? Number(params.userId) : null;
+  const isEditing = userId !== null && Number.isInteger(userId) && userId > 0;
+
+  const sessionHeadquarterId = useAuthStore(
+    (state) => state.user?.headquarterId ?? null,
+  );
+
+  const [profiles, setProfiles] = React.useState<
+    Array<{ id: number; profile: string; type: string }>
+  >([]);
+  const [headquarters, setHeadquarters] = React.useState<
+    Array<{ id: number; name: string }>
+  >([]);
+  const [loadingLookups, setLoadingLookups] = React.useState(true);
+  const [loadingUser, setLoadingUser] = React.useState(isEditing);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
+
   const [showPassword, setShowPassword] = React.useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
+
+  const isEditingRef = React.useRef(isEditing);
+  const schema = React.useMemo(
+    () => buildUserSchema(isEditingRef.current),
+    [],
+  );
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
-    watch,
+    control,
     setValue,
+    reset,
+    formState: { errors, isSubmitting },
   } = useForm<UserFormData>({
-    resolver: zodResolver(userSchema),
+    resolver: zodResolver(schema),
     defaultValues: {
-      fullName: '',
+      name: '',
       email: '',
-      phone: '',
-      role: undefined,
-      username: '',
+      telephone: '',
+      profileId: 0,
+      headquarterId: sessionHeadquarterId ?? 0,
       password: '',
       confirmPassword: '',
-      isActive: true,
     },
   });
 
-  const formValues = watch();
-  const selectedRole = roles.find((r) => r.id === formValues.role);
+  const profileId = useWatch({ control, name: 'profileId' });
+  const headquarterId = useWatch({ control, name: 'headquarterId' });
+
+  // Catálogos de perfil y sede.
+  React.useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const [profilesResp, headquartersResp] = await Promise.all([
+          profileService.list(),
+          headquarterService.list({ page: 1, limit: 100 }),
+        ]);
+        if (!active) return;
+        if (profilesResp.code === 200) setProfiles(profilesResp.data);
+        if (headquartersResp.code === 200) {
+          setHeadquarters(headquartersResp.data.items);
+        }
+      } catch {
+        if (active) {
+          setLoadError('No se pudieron cargar los perfiles ni las sedes.');
+        }
+      } finally {
+        if (active) setLoadingLookups(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Precarga en modo edición.
+  React.useEffect(() => {
+    if (!isEditing || userId === null) return;
+    let active = true;
+    void (async () => {
+      try {
+        const resp = await userService.getById(userId);
+        if (!active) return;
+        if (resp.code !== 200) {
+          setLoadError(
+            (Array.isArray(resp.data) ? resp.data.join(', ') : resp.msg) ||
+              'No se pudo cargar el usuario.',
+          );
+          return;
+        }
+        reset({
+          name: resp.data.name,
+          email: resp.data.email,
+          telephone: resp.data.telephone ?? '',
+          profileId: resp.data.profileId,
+          headquarterId: resp.data.headquarterId ?? 0,
+          password: '',
+          confirmPassword: '',
+        });
+      } catch {
+        if (active) setLoadError('No se pudo conectar con el servidor.');
+      } finally {
+        if (active) setLoadingUser(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [isEditing, userId, reset]);
 
   const onSubmit = async (data: UserFormData) => {
-    console.log('User data:', data);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    let savedId = userId;
+
+    if (isEditing && userId !== null) {
+      const resp = await userService.update(userId, {
+        name: data.name.trim(),
+        email: data.email.trim(),
+        telephone: data.telephone.trim() || undefined,
+        profileId: data.profileId,
+        headquarterId: data.headquarterId,
+      });
+
+      if (resp.code !== 200) {
+        const message =
+          (Array.isArray(resp.data) ? resp.data.join(', ') : resp.msg) ||
+          'Ocurrió un error al guardar el usuario.';
+        toast({
+          variant: 'warning',
+          title: '❌ Error al actualizar',
+          description: message,
+        });
+        throw new Error(message);
+      }
+
+      // Contraseña opcional: si se dejó vacía, no se toca.
+      if (data.password !== '') {
+        const passResp = await userService.updatePassword(userId, data.password);
+        if (passResp.code !== 200) {
+          const message =
+            (Array.isArray(passResp.data)
+              ? passResp.data.join(', ')
+              : passResp.msg) || 'No se pudo cambiar la contraseña.';
+          toast({
+            variant: 'warning',
+            title: '❌ Contraseña no actualizada',
+            description: message,
+          });
+          throw new Error(message);
+        }
+      }
+
+      toast({
+        variant: 'success',
+        title: '✅ Usuario actualizado',
+        description: 'Los datos del usuario se han actualizado correctamente.',
+      });
+    } else {
+      const resp = await userService.create({
+        name: data.name.trim(),
+        email: data.email.trim(),
+        password: data.password,
+        telephone: data.telephone.trim() || undefined,
+        profileId: data.profileId,
+        headquarterId: data.headquarterId,
+      });
+
+      if (resp.code !== 200 && resp.code !== 201) {
+        const message =
+          (Array.isArray(resp.data) ? resp.data.join(', ') : resp.msg) ||
+          'Ocurrió un error al crear el usuario.';
+        toast({
+          variant: 'warning',
+          title: '❌ Error al crear',
+          description: message,
+        });
+        throw new Error(message);
+      }
+
+      savedId = resp.data.id;
+      toast({
+        variant: 'success',
+        title: '✅ Usuario creado',
+        description: `El usuario "${resp.data.name}" se ha creado correctamente.`,
+      });
+    }
+
     navigate('/configuracion/usuarios');
+    return savedId;
   };
 
   const handleCancel = () => {
     navigate('/configuracion/usuarios');
   };
+
+  const busy = loadingLookups || loadingUser;
+  const noProfiles = !loadingLookups && profiles.length === 0;
 
   return (
     <ConfigLayout
@@ -90,26 +293,41 @@ export function UserCreatePage() {
           {/* Header */}
           <div className="border-b bg-background px-6 py-4 rounded-lg">
             <div className="flex items-center gap-4 mb-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleCancel}
-              >
+              <Button variant="ghost" size="icon" onClick={handleCancel}>
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="cursor-pointer hover:text-foreground">Usuarios</span>
+                <span
+                  className="cursor-pointer hover:text-foreground"
+                  onClick={handleCancel}
+                >
+                  Usuarios
+                </span>
                 <span>/</span>
-                <span className="text-foreground">Nuevo Usuario</span>
+                <span className="text-foreground">
+                  {isEditing ? 'Editar Usuario' : 'Nuevo Usuario'}
+                </span>
               </div>
             </div>
             <div className="ml-14">
-              <h1 className="text-2xl font-bold">Crear Nuevo Usuario</h1>
+              <h1 className="text-2xl font-bold">
+                {isEditing ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
+              </h1>
               <p className="text-muted-foreground">
-                Agrega un nuevo usuario al sistema y asigna sus permisos
+                {isEditing
+                  ? 'Actualiza los datos, el perfil o la sede del usuario'
+                  : 'Agrega un usuario al sistema y asíignale su perfil y su sede'}
               </p>
             </div>
           </div>
+
+          {loadError && (
+            <Card className="border-destructive/50 bg-destructive/5">
+              <CardContent className="py-4 text-sm text-destructive">
+                {loadError}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="mx-auto max-w-4xl">
@@ -121,26 +339,26 @@ export function UserCreatePage() {
                     <h3 className="font-semibold mb-4">Información Personal</h3>
                   </div>
 
-                  {/* Full Name */}
                   <div className="space-y-2">
-                    <Label htmlFor="fullName">Nombre Completo</Label>
+                    <Label htmlFor="user-name">Nombre Completo *</Label>
                     <Input
-                      id="fullName"
+                      id="user-name"
                       placeholder="Juan Pérez"
-                      {...register('fullName')}
+                      maxLength={255}
+                      {...register('name')}
                     />
-                    {errors.fullName && (
-                      <p className="text-xs text-red-500">{errors.fullName.message}</p>
+                    {errors.name && (
+                      <p className="text-xs text-red-500">{errors.name.message}</p>
                     )}
                   </div>
 
-                  {/* Email */}
                   <div className="space-y-2">
-                    <Label htmlFor="email">Correo Electrónico</Label>
+                    <Label htmlFor="user-email">Correo Electrónico *</Label>
                     <Input
-                      id="email"
+                      id="user-email"
                       type="email"
                       placeholder="juan@ejemplo.com"
+                      maxLength={255}
                       {...register('email')}
                     />
                     {errors.email && (
@@ -148,45 +366,94 @@ export function UserCreatePage() {
                     )}
                   </div>
 
-                  {/* Phone */}
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Teléfono</Label>
+                    <Label htmlFor="user-phone">Teléfono</Label>
                     <Input
-                      id="phone"
+                      id="user-phone"
                       type="tel"
-                      placeholder="+52 123 456 7890"
-                      {...register('phone')}
+                      placeholder="3001112233"
+                      maxLength={15}
+                      {...register('telephone')}
                     />
-                    {errors.phone && (
-                      <p className="text-xs text-red-500">{errors.phone.message}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Hasta 15 dígitos (lo que acepta el backend).
+                    </p>
+                    {errors.telephone && (
+                      <p className="text-xs text-red-500">
+                        {errors.telephone.message}
+                      </p>
                     )}
                   </div>
 
-                  {/* Role */}
                   <div className="space-y-2">
-                    <Label htmlFor="role">Rol en el Sistema</Label>
+                    <Label htmlFor="user-profile">Perfil *</Label>
                     <Select
-                      value={formValues.role}
-                      onValueChange={(value) => setValue('role', value as any)}
+                      value={profileId > 0 ? String(profileId) : NO_VALUE}
+                      onValueChange={(value) =>
+                        setValue('profileId', Number(value), {
+                          shouldValidate: true,
+                        })
+                      }
                     >
-                      <SelectTrigger id="role">
-                        <SelectValue placeholder="Selecciona un rol" />
+                      <SelectTrigger id="user-profile" disabled={busy}>
+                        <SelectValue placeholder="Selecciona un perfil" />
                       </SelectTrigger>
                       <SelectContent>
-                        {roles.map((role) => (
-                          <SelectItem key={role.id} value={role.id}>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{role.name}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {role.description}
-                              </span>
-                            </div>
+                        {profiles.map((profile) => (
+                          <SelectItem key={profile.id} value={String(profile.id)}>
+                            <span className="flex items-center gap-2">
+                              {profile.profile}
+                              {profile.type === 'SYSTEM' && (
+                                <span className="text-xs text-muted-foreground">
+                                  (sistema)
+                                </span>
+                              )}
+                            </span>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {errors.role && (
-                      <p className="text-xs text-red-500">{errors.role.message}</p>
+                    {errors.profileId && (
+                      <p className="text-xs text-red-500">
+                        {errors.profileId.message}
+                      </p>
+                    )}
+                    {noProfiles && (
+                      <p className="text-xs text-red-500">
+                        No hay perfiles: créalos antes en Configuración →
+                        Perfiles.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="user-headquarter">Sede *</Label>
+                    <Select
+                      value={headquarterId > 0 ? String(headquarterId) : NO_VALUE}
+                      onValueChange={(value) =>
+                        setValue('headquarterId', Number(value), {
+                          shouldValidate: true,
+                        })
+                      }
+                    >
+                      <SelectTrigger id="user-headquarter" disabled={busy}>
+                        <SelectValue placeholder="Selecciona una sede" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {headquarters.map((headquarter) => (
+                          <SelectItem
+                            key={headquarter.id}
+                            value={String(headquarter.id)}
+                          >
+                            {headquarter.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.headquarterId && (
+                      <p className="text-xs text-red-500">
+                        {errors.headquarterId.message}
+                      </p>
                     )}
                   </div>
                 </CardContent>
@@ -199,109 +466,85 @@ export function UserCreatePage() {
                     <h3 className="font-semibold mb-4">Credenciales de Acceso</h3>
                   </div>
 
-                  {/* Username */}
                   <div className="space-y-2">
-                    <Label htmlFor="username">Nombre de Usuario</Label>
-                    <Input
-                      id="username"
-                      placeholder="usuario123"
-                      {...register('username')}
-                    />
-                    {errors.username && (
-                      <p className="text-xs text-red-500">{errors.username.message}</p>
-                    )}
-                  </div>
-
-                  {/* Password */}
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Contraseña</Label>
+                    <Label htmlFor="user-password">
+                      Contraseña {isEditing ? '' : '*'}
+                    </Label>
                     <div className="relative">
                       <Input
-                        id="password"
+                        id="user-password"
                         type={showPassword ? 'text' : 'password'}
-                        placeholder="••••••••"
+                        placeholder={
+                          isEditing ? 'Déjala vacía para no cambiarla' : 'Mínimo 8 caracteres'
+                        }
+                        autoComplete="new-password"
+                        maxLength={60}
                         {...register('password')}
                       />
-                      <Button
+                      <button
                         type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-0 top-0 h-full w-10 hover:bg-transparent"
+                        onClick={() => setShowPassword((value) => !value)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
                       >
-                        <span className="text-muted-foreground">
-                          {showPassword ? '👁️' : '👁️‍🗨️'}
-                        </span>
-                      </Button>
+                        {showPassword ? 'Ocultar' : 'Ver'}
+                      </button>
                     </div>
                     {errors.password && (
-                      <p className="text-xs text-red-500">{errors.password.message}</p>
+                      <p className="text-xs text-red-500">
+                        {errors.password.message}
+                      </p>
                     )}
+                    <p className="text-xs text-muted-foreground">
+                      {isEditing
+                        ? 'Si la dejas vacía, el usuario conserva su contraseña actual.'
+                        : 'Mínimo 8 caracteres (lo que exige el backend).'}
+                    </p>
                   </div>
 
-                  {/* Confirm Password */}
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
-                    <div className="relative">
-                      <Input
-                        id="confirmPassword"
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        placeholder="••••••••"
-                        {...register('confirmPassword')}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-0 top-0 h-full w-10 hover:bg-transparent"
-                      >
-                        <span className="text-muted-foreground">
-                          {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
-                        </span>
-                      </Button>
-                    </div>
+                    <Label htmlFor="user-confirm-password">
+                      Confirmar Contraseña {isEditing ? '' : '*'}
+                    </Label>
+                    <Input
+                      id="user-confirm-password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Repite la contraseña"
+                      autoComplete="new-password"
+                      maxLength={60}
+                      {...register('confirmPassword')}
+                    />
                     {errors.confirmPassword && (
-                      <p className="text-xs text-red-500">{errors.confirmPassword.message}</p>
+                      <p className="text-xs text-red-500">
+                        {errors.confirmPassword.message}
+                      </p>
                     )}
                   </div>
-
-                  {/* Active Status */}
-                  <div className="flex items-center justify-between pt-4 border-t">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="isActive">Usuario Activo</Label>
-                      <p className="text-sm text-muted-foreground">
-                        El usuario podrá acceder al sistema
-                      </p>
-                    </div>
-                    <Switch
-                      id="isActive"
-                      checked={formValues.isActive}
-                      onCheckedChange={(checked: boolean) => setValue('isActive', checked)}
-                    />
-                  </div>
-
-                  {/* Role Preview */}
-                  {selectedRole && (
-                    <div className="mt-4 rounded-lg bg-muted p-4">
-                      <p className="text-sm font-medium">Permisos del Rol</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {selectedRole.description}
-                      </p>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             </div>
 
-            {/* Form Actions */}
-            <div className="flex justify-end gap-4 mt-6">
-              <Button type="button" variant="outline" onClick={handleCancel} disabled={isSubmitting}>
+            {/* Actions */}
+            <div className="mt-6 flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={handleCancel}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting} className="gap-2">
-                <UserPlus className="h-4 w-4" />
-                {isSubmitting ? 'Creando...' : 'Crear Usuario'}
+              <Button type="submit" disabled={isSubmitting || busy || noProfiles}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : isEditing ? (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Guardar cambios
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Crear usuario
+                  </>
+                )}
               </Button>
             </div>
           </form>

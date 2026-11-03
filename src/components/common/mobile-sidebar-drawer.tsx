@@ -15,6 +15,7 @@ import {
   Banknote,
   Armchair,
   Wallet,
+  IdCard,
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -90,14 +91,23 @@ const configNavItems: NavItem[] = [
     icon: <Armchair className="h-5 w-5" />,
   },
   {
+    to: '/configuracion/nomina',
+    label: 'Nómina',
+    icon: <Wallet className="h-5 w-5" />,
+  },
+];
+
+/** Módulos del bloque SISTEMA: usuarios, perfiles y configuración general. */
+const systemNavItems: NavItem[] = [
+  {
     to: '/configuracion/usuarios',
     label: 'Usuarios',
     icon: <Users className="h-5 w-5" />,
   },
   {
-    to: '/configuracion/nomina',
-    label: 'Nómina',
-    icon: <Wallet className="h-5 w-5" />,
+    to: '/configuracion/perfiles',
+    label: 'Perfiles',
+    icon: <IdCard className="h-5 w-5" />,
   },
 ];
 
@@ -213,6 +223,7 @@ export function MobileSidebarDrawer() {
               <p className="px-3 pb-2 text-xs font-semibold text-muted-foreground">
                 SISTEMA
               </p>
+              {systemNavItems.map((i) => renderNavItem(i, closeSidebar))}
               <NavLink
                 to="/configuracion/sistema"
                 onClick={closeSidebar}

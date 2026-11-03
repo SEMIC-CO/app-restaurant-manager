@@ -12,6 +12,7 @@ export type {
 export { CustomerFormDialog } from './customer-form-dialog';
 export { ConfirmDialog, ConfirmHighlight } from './confirm-dialog';
 export { PaymentHistoryDialog } from './payment-history-dialog';
+export { ProfileFormDialog, type ProfileFormData } from './profile-form-dialog';
 export {
   PayrollTemplateFormDialog,
   type PayrollTemplateFormData,

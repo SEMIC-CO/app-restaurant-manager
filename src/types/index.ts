@@ -391,7 +391,6 @@ export interface ListProductsParams {
   available?: boolean;
 }
 
-// Órdenes (API /orders)
 export type ApiOrderStatus = 'pending' | 'preparing' | 'ready' | 'delivered' | 'paid' | 'cancelled';
 
 export interface ApiOrderItem {
@@ -753,6 +752,82 @@ export interface PreviewPayrollPayload {
   referenceDate: string;
   /** Restringe el cálculo a estos empleados; si se omite, a todos. */
   employeeIds?: number[];
+}
+
+// Usuarios (API /users) — alcance empresa del JWT
+export type ApiUserStatus = 'ACTIVO' | 'INACTIVO';
+
+/**
+ * Usuario del backend (`users`). Sin contraseña ni hash; el nombre del perfil
+ * NO viene en la respuesta, se resuelve cruzando `profileId` con
+ * `GET /profiles`.
+ */
+export interface ApiUser {
+  id: number;
+  name: string;
+  email: string;
+  telephone: string | null;
+  isOwner: boolean;
+  companyId: number | null;
+  profileId: number;
+  headquarterId: number | null;
+  status: ApiUserStatus;
+  acceptTerms: boolean;
+  acceptPolicies: boolean;
+}
+
+export interface ListUsersParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
+/** `password` es obligatorio solo al crear; la sede la define la empresa. */
+export interface CreateUserPayload {
+  name: string;
+  email: string;
+  password: string;
+  telephone?: string;
+  profileId: number;
+  headquarterId: number;
+  isOwner?: boolean;
+}
+
+export interface UpdateUserPayload {
+  name?: string;
+  email?: string;
+  telephone?: string;
+  profileId?: number;
+  headquarterId?: number;
+  isOwner?: boolean;
+  /**
+   * Activa/desactiva la cuenta. El backend rechaza cambiarte a ti mismo
+   * (`403`: te dejaría sin poder iniciar sesión).
+   */
+  status?: ApiUserStatus;
+}
+
+// Perfiles de usuario (API /profiles) — alcance empresa del JWT
+/**
+ * Perfil: `SYSTEM` lo creó la plataforma (no se edita ni se borra, el
+ * backend responde `403`); `COMPANY` lo creó la empresa del token.
+ */
+export type ApiProfileType = 'SYSTEM' | 'COMPANY';
+
+export interface ApiProfile {
+  id: number;
+  /** Nombre del perfil (máx. 50). */
+  profile: string;
+  type: ApiProfileType;
+  companyId: number;
+}
+
+export interface CreateProfilePayload {
+  profile: string;
+}
+
+export interface UpdateProfilePayload {
+  profile?: string;
 }
 
 // Pago de nómina en lote (API /payments-employees/batch)

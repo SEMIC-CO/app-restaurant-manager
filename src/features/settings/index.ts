@@ -8,3 +8,4 @@ export { EmployeesListPage } from './employees-list-page';
 export { EmployeePayrollPage } from './employee-payroll-page';
 export { NominaConfigPage } from './nomina-config-page';
 export { NominaPaymentsPage } from './nomina-payments-page';
+export { ProfilesListPage } from './profiles-list-page';
