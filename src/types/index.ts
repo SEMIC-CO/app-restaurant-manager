@@ -140,6 +140,23 @@ export interface City {
   codeCity: string | null;
 }
 
+// Sedes (API /headquarters) — alcance empresa del JWT
+export interface Headquarters {
+  id: number;
+  name: string;
+  address: string | null;
+  companyId: number | null;
+  countryId: number | null;
+  departamentId: number | null;
+  cityId: number | null;
+}
+
+export interface ListHeadquartersParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
 // Registro (API /auth/register)
 export interface RegisterPayload {
   name: string;

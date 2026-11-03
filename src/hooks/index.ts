@@ -1,4 +1,5 @@
 export { useProducts, useCategories, useProductSearch } from './use-products';
+export { useCurrentHeadquarter } from './use-current-headquarter';
 export { useFloorTables } from './use-floor-tables';
 export { useToast, toast } from './use-toast';
 export { useSessionBootstrap } from './use-session-bootstrap';

@@ -5,6 +5,7 @@ import { Input, Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { useThemeStore, useUiStore, useAuthStore, clearSessionScope } from '@/store';
 import { authService } from '@/services';
+import { useCurrentHeadquarter } from '@/hooks';
 
 const navLinks: Array<{ to: string; label: string }> = [];
 
@@ -20,6 +21,7 @@ export function AppHeader() {
     const toggleTheme = useThemeStore((state) => state.toggleTheme);
     const user = useAuthStore((state) => state.user);
     const clearSession = useAuthStore((state) => state.clearSession);
+    const headquarter = useCurrentHeadquarter();
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -68,8 +70,11 @@ export function AppHeader() {
                 <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary text-xl">
                     🥟
                 </div>
-                <span className="hidden sm:block text-lg font-bold text-primary truncate">
-                    Empanadas Manager
+                <span
+                    className="hidden sm:block text-lg font-bold text-primary truncate"
+                    title={headquarter?.name ?? 'Empanadas Manager'}
+                >
+                    {headquarter?.name ?? 'Empanadas Manager'}
                 </span>
             </div>
 
