@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Restaurant POS frontend. Single package (not a monorepo). React 19 + TypeScript (strict) + Vite 7 (SWC) + react-router-dom 7 + Zustand + shadcn/ui + Tailwind CSS 4. Package manager is **pnpm**.
+Restaurant POS frontend. Single package (not a monorepo). React 19 + TypeScript (strict) + Vite 8 (SWC/Rolldown) + react-router-dom 7 + Zustand + shadcn/ui + Tailwind CSS 4. Package manager is **pnpm**. Node **>=24.22.2** (ver `.nvmrc`; `engines` en `package.json`).
 
 ## Commands
 
