@@ -18,7 +18,9 @@ export function ConfigLayout({ sidebar, main }: ConfigLayoutProps) {
           <AppHeader />
         </div>
 
-        <main className="flex-1 overflow-auto min-w-0">
+        {/* Igual que los demás layouts (billing, dashboard, kitchen, profile,
+            pos): el contenido siempre lleva 24px de aire de los bordes. */}
+        <main className="flex-1 overflow-auto min-w-0 p-6">
           {main}
         </main>
       </div>

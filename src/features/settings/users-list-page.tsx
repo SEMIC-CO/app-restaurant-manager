@@ -230,18 +230,21 @@ export function UsersListPage() {
       sidebar={<ConfigSidebar />}
       main={
         <div className="space-y-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold">Usuarios</h1>
-              <p className="mt-1 text-muted-foreground">
-                Cuentas que acceden al sistema, cada una con su perfil y su
-                sede.
-              </p>
+          {/* Header: la misma barra (con su padding) que el resto de módulos */}
+          <div className="border-b bg-background px-6 py-4 rounded-lg">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold">Usuarios</h1>
+                <p className="mt-1 text-muted-foreground">
+                  Cuentas que acceden al sistema, cada una con su perfil y su
+                  sede.
+                </p>
+              </div>
+              <Button className="gap-2" onClick={() => navigate('/configuracion/usuarios/nuevo')}>
+                <Plus className="h-4 w-4" />
+                Nuevo usuario
+              </Button>
             </div>
-            <Button className="gap-2" onClick={() => navigate('/configuracion/usuarios/nuevo')}>
-              <Plus className="h-4 w-4" />
-              Nuevo usuario
-            </Button>
           </div>
 
           {/* Resumen */}

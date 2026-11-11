@@ -75,24 +75,26 @@ export function SettingsPage() {
     <ConfigLayout
       sidebar={<ConfigSidebar />}
       main={
-        <div className="space-y-6 p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">PANEL DE CONFIGURACIÓN</h1>
-              <p className="text-muted-foreground">
-                Bienvenido al centro de control de tu negocio de empanadas.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" className="gap-2">
-                <FileDown className="h-4 w-4" />
-                Exportar Reporte
-              </Button>
-              <Button className="gap-2 bg-primary hover:bg-primary/90">
-                <Plus className="h-4 w-4" />
-                Nueva Venta
-              </Button>
+        <div className="space-y-6">
+          {/* Header: la misma barra (con su padding) que el resto de módulos */}
+          <div className="border-b bg-background px-6 py-4 rounded-lg">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold">PANEL DE CONFIGURACIÓN</h1>
+                <p className="text-muted-foreground">
+                  Bienvenido al centro de control de tu negocio de empanadas.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button variant="outline" className="gap-2">
+                  <FileDown className="h-4 w-4" />
+                  Exportar Reporte
+                </Button>
+                <Button className="gap-2 bg-primary hover:bg-primary/90">
+                  <Plus className="h-4 w-4" />
+                  Nueva Venta
+                </Button>
+              </div>
             </div>
           </div>
 

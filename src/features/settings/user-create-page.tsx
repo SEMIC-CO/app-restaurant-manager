@@ -523,8 +523,8 @@ export function UserCreatePage() {
               </Card>
             </div>
 
-            {/* Actions */}
-            <div className="mt-6 flex justify-end gap-3">
+            {/* Actions: mismo pie de formulario que el resto de módulos */}
+            <div className="mt-6 flex justify-end gap-4 border-t pt-6">
               <Button type="button" variant="outline" onClick={handleCancel}>
                 Cancelar
               </Button>

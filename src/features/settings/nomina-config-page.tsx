@@ -152,20 +152,23 @@ export function NominaConfigPage() {
       sidebar={<ConfigSidebar />}
       main={
         <div className="space-y-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold">Configuración de nómina</h1>
-              <p className="mt-1 text-muted-foreground">
-                Define la frecuencia y el monto base de cada empleado. Un único
-                registro por empleado.
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" className="gap-2" onClick={() => navigate('/configuracion/nomina/pagos')}>
-                <Wallet className="h-4 w-4" />
-                Pagos de nómina
-                <ArrowRight className="h-4 w-4" />
-              </Button>
+          {/* Header: la misma barra (con su padding) que el resto de módulos */}
+          <div className="border-b bg-background px-6 py-4 rounded-lg">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold">Configuración de nómina</h1>
+                <p className="mt-1 text-muted-foreground">
+                  Define la frecuencia y el monto base de cada empleado. Un único
+                  registro por empleado.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" className="gap-2" onClick={() => navigate('/configuracion/nomina/pagos')}>
+                  <Wallet className="h-4 w-4" />
+                  Pagos de nómina
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
 

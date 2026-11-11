@@ -371,60 +371,63 @@ export function NominaPaymentsPage() {
       sidebar={<ConfigSidebar />}
       main={
         <div className="space-y-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <Button
-                variant="ghost"
-                className="-ml-2 gap-2"
-                onClick={() => navigate('/configuracion/nomina')}
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Configuración de nómina
-              </Button>
-              <h1 className="mt-2 text-2xl font-bold">Pagos de nómina</h1>
-              <p className="mt-1 text-muted-foreground">
-                Carga la nómina del período, elige a quién pagar y ajusta los
-                montos antes de pagar.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-end gap-2">
-              <div className="space-y-1">
-                <Label htmlFor="adjustment-employee" className="text-xs">
-                  Empleado
-                </Label>
-                <Select
-                  value={adjustmentEmployeeId ? String(adjustmentEmployeeId) : ''}
-                  onValueChange={(value) => setAdjustmentEmployeeId(Number(value))}
+          {/* Header: la misma barra (con su padding) que el resto de módulos */}
+          <div className="border-b bg-background px-6 py-4 rounded-lg">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <Button
+                  variant="ghost"
+                  className="-ml-2 gap-2"
+                  onClick={() => navigate('/configuracion/nomina')}
                 >
-                  <SelectTrigger id="adjustment-employee" className="w-[190px]">
-                    <SelectValue placeholder="Selecciona" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {rows.map((row) => (
-                      <SelectItem key={row.employeeId} value={String(row.employeeId)}>
-                        {row.employeeName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <ArrowLeft className="h-4 w-4" />
+                  Configuración de nómina
+                </Button>
+                <h1 className="mt-2 text-2xl font-bold">Pagos de nómina</h1>
+                <p className="mt-1 text-muted-foreground">
+                  Carga la nómina del período, elige a quién pagar y ajusta los
+                  montos antes de pagar.
+                </p>
               </div>
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => openAdjustment(adjustmentEmployeeId ?? 0)}
-                disabled={adjustmentEmployeeId === null}
-              >
-                <ReceiptText className="h-4 w-4" />
-                Agregar adelanto, bono o descuento
-              </Button>
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => setIsHistoryOpen(true)}
-              >
-                <History className="h-4 w-4" />
-                Pagos realizados
-              </Button>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="adjustment-employee" className="text-xs">
+                    Empleado
+                  </Label>
+                  <Select
+                    value={adjustmentEmployeeId ? String(adjustmentEmployeeId) : ''}
+                    onValueChange={(value) => setAdjustmentEmployeeId(Number(value))}
+                  >
+                    <SelectTrigger id="adjustment-employee" className="w-[190px]">
+                      <SelectValue placeholder="Selecciona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {rows.map((row) => (
+                        <SelectItem key={row.employeeId} value={String(row.employeeId)}>
+                          {row.employeeName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => openAdjustment(adjustmentEmployeeId ?? 0)}
+                  disabled={adjustmentEmployeeId === null}
+                >
+                  <ReceiptText className="h-4 w-4" />
+                  Agregar adelanto, bono o descuento
+                </Button>
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => setIsHistoryOpen(true)}
+                >
+                  <History className="h-4 w-4" />
+                  Pagos realizados
+                </Button>
+              </div>
             </div>
           </div>
 
