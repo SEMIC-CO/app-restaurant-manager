@@ -16,6 +16,7 @@ import {
   SettingsPage,
   ProductsListPage,
   CategoriesListPage,
+  InventoryPage,
   UsersListPage,
   UserCreatePage,
   TablesListPage,
@@ -64,6 +65,7 @@ function App() {
           <Route path="/facturacion" element={<BillingPage />} />
           <Route path="/facturacion/:invoiceId" element={<InvoiceDetailPage />} />
           <Route path="/reportes" element={<AnalyticsPage />} />
+          <Route path="/inventario" element={<InventoryPage />} />
           <Route path="/perfil" element={<ProfilePage />} />
           <Route path="/productos/nuevo" element={<ProductFormPage />} />
           <Route

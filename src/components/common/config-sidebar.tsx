@@ -14,6 +14,7 @@ import {
   Banknote,
   Armchair,
   Briefcase,
+  Boxes,
   Wallet,
   IdCard,
 } from 'lucide-react';
@@ -69,6 +70,11 @@ const mainNavItems: NavItem[] = [
     to: '/reportes',
     label: 'Reportes',
     icon: <BarChart3 className="h-5 w-5" />,
+  },
+  {
+    to: '/inventario',
+    label: 'Inventario',
+    icon: <Boxes className="h-5 w-5" />,
   },
 ];
 

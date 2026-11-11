@@ -4,6 +4,7 @@ export { KitchenPage } from './kitchen';
 export { DeliveryPage } from './delivery';
 export { AnalyticsPage } from './analytics';
 export { BillingPage, InvoiceDetailPage } from './billing';
+export { InventoryPage } from './inventory';
 export { ProfilePage } from './profile';
 export { ProductFormPage } from './products';
 export { SettingsPage, ProductsListPage, CategoriesListPage, UsersListPage, UserCreatePage, TablesListPage, EmployeesListPage, EmployeePayrollPage, NominaConfigPage, NominaPaymentsPage, ProfilesListPage } from './settings';

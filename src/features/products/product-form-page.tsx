@@ -26,9 +26,10 @@ import { ImagePlus, Upload } from 'lucide-react';
 import { formatCurrency, formatFileSize, resolveStorageUrl } from '@/utils';
 import { ConfigSidebar } from '@/components/common';
 import { toast, useImageUpload, type PreparedImage } from '@/hooks';
-import { categoryService, productService } from '@/services';
+import { categoryService, productService, inventoryCategoryService, inventoryItemService } from '@/services';
 import type {
   ApiCategory,
+  ApiInventoryItem,
   ApiProduct,
   ApiResponse,
   CreateProductPayload,
@@ -39,6 +40,11 @@ const productSchema = z.object({
   categoryId: z.string().min(1, 'Selecciona una categoría'),
   price: z.number().min(0, 'El precio debe ser mayor a 0'),
   cost: z.number().min(0, 'El costo debe ser mayor a 0'),
+  /**
+   * Artículo de inventario vinculado (`''` = sin control de stock). Solo
+   * aplica a lo que se vende directo (gaseosas, paquetería): los platos no.
+   */
+  inventoryItemId: z.string(),
   description: z
     .string()
     .min(10, 'La descripción debe tener al menos 10 caracteres'),
@@ -47,6 +53,9 @@ const productSchema = z.object({
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
+
+/** Sentinel de Radix Select para "sin artículo" (value no puede ser ''). */
+const NO_INVENTORY_ITEM = 'none';
 
 function apiErrorMessage(resp: ApiResponse<unknown>, fallback: string) {
   const data: unknown = resp.data;
@@ -77,6 +86,13 @@ export function ProductFormPage() {
     null,
   );
   const [categories, setCategories] = React.useState<ApiCategory[]>([]);
+  /**
+   * Artículos de inventario vinculables: si existe la categoría "Producto"
+   * se muestran solo esos (gaseosas, paquetería); si no, todos.
+   */
+  const [sellableItems, setSellableItems] = React.useState<
+    ApiInventoryItem[]
+  >([]);
   const { prepare, upload, status } = useImageUpload();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -95,6 +111,7 @@ export function ProductFormPage() {
       categoryId: '',
       price: 0,
       cost: 0,
+      inventoryItemId: '',
       description: '',
       imageUrl: '',
       isAvailable: true,
@@ -105,6 +122,26 @@ export function ProductFormPage() {
   const selectedCategory = categories.find(
     (category) => category.id === Number(formValues.categoryId),
   );
+  const selectedInventoryItem = sellableItems.find(
+    (item) => String(item.id) === formValues.inventoryItemId,
+  );
+
+  /**
+   * Artículos elegibles para vincular: solo los que **tienen control de
+   * stock** (un servicio o un artículo sin control nunca descontaría nada al
+   * vender). Si el producto ya está vinculado a uno que dejó de ser elegible,
+   * se conserva en la lista para que el selector no se quede en blanco.
+   */
+  const linkableItems = React.useMemo(() => {
+    const filtered = sellableItems.filter((item) => item.trackInventory);
+    if (
+      selectedInventoryItem &&
+      !filtered.some((item) => item.id === selectedInventoryItem.id)
+    ) {
+      return [...filtered, selectedInventoryItem];
+    }
+    return filtered;
+  }, [sellableItems, selectedInventoryItem]);
 
   const loadingProduct = isEditing && editingProduct === null;
 
@@ -123,6 +160,44 @@ export function ProductFormPage() {
           title: '❌ Error al cargar categorías',
           description: 'No se pudieron cargar las categorías.',
         });
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Artículos de inventario vinculables. Si existe la categoría "Producto"
+  // (gaseosas, paquetería) se filtra por ella; si no, se ofrecen todos.
+  React.useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const [categoriesResp, itemsResp] = await Promise.all([
+          inventoryCategoryService.list({ limit: 100, isActive: true }),
+          inventoryItemService.list({ limit: 100, isActive: true }),
+        ]);
+        if (!active) return;
+
+        const allItems = itemsResp.code === 200 ? itemsResp.data.items : [];
+        const sellableCategory =
+          categoriesResp.code === 200
+            ? categoriesResp.data.items.find(
+                (category) =>
+                  category.name.trim().toLowerCase() === 'producto',
+              )
+            : undefined;
+
+        setSellableItems(
+          sellableCategory
+            ? allItems.filter(
+                (item) => item.inventoryCategoryId === sellableCategory.id,
+              )
+            : allItems,
+        );
+      } catch {
+        // Sin inventario el selector queda vacío: el producto se crea igual,
+        // simplemente sin vínculo de stock.
       }
     })();
     return () => {
@@ -170,6 +245,7 @@ export function ProductFormPage() {
           price: Number(product.price),
           cost: Number(product.cost),
           categoryId: String(product.categoryId),
+          inventoryItemId: String(product.inventoryItemId ?? ''),
           imageUrl: isAbsoluteUrl(product.imageUrl) ? product.imageUrl : '',
           isAvailable: product.available ?? true,
         });
@@ -241,6 +317,9 @@ export function ProductFormPage() {
       cost: data.cost,
       available: data.isAvailable,
       description: data.description,
+      inventoryItemId: data.inventoryItemId
+        ? Number(data.inventoryItemId)
+        : null,
       ...(data.imageUrl ? { imageUrl: data.imageUrl } : {}),
     };
 
@@ -353,6 +432,86 @@ export function ProductFormPage() {
         <div className="space-y-6">
           <Card>
             <CardContent className="pt-6 space-y-4">
+              {/* Artículo de inventario (PRIMER campo): al elegirlo se
+                  autocompletan nombre y costo del producto. Solo lo que se
+                  vende directo — gaseosas, paquetería. Los platos se quedan
+                  sin vínculo y no descuentan stock. */}
+              <div className="space-y-2">
+                <Label htmlFor="inventory-item">Artículo de inventario</Label>
+                <Select
+                  value={formValues.inventoryItemId || NO_INVENTORY_ITEM}
+                  onValueChange={(value) => {
+                    const itemId =
+                      value === NO_INVENTORY_ITEM ? '' : value;
+                    setValue('inventoryItemId', itemId, {
+                      shouldValidate: true,
+                    });
+
+                    // Al crear, el artículo rellena nombre y precio de compra.
+                    // Al editar no se pisan los datos ya guardados.
+                    if (isEditing || !itemId) return;
+                    const item = sellableItems.find(
+                      (candidate) => String(candidate.id) === itemId,
+                    );
+                    if (!item) return;
+                    setValue('name', item.name, { shouldValidate: true });
+                    setValue('cost', Number(item.costPrice) || 0, {
+                      shouldValidate: true,
+                    });
+                  }}
+                >
+                  <SelectTrigger id="inventory-item">
+                    <SelectValue placeholder="Selecciona un artículo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_INVENTORY_ITEM}>
+                      Sin artículo (sin control de stock)
+                    </SelectItem>
+                    {linkableItems.map((item) => (
+                      <SelectItem key={item.id} value={String(item.id)}>
+                        {item.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {selectedInventoryItem ? (
+                    <>
+                      <span className="font-medium text-foreground">
+                        {selectedInventoryItem.name}
+                      </span>{' '}
+                      — precio de compra:{' '}
+                      <span className="font-medium text-foreground">
+                        {formatCurrency(
+                          Number(selectedInventoryItem.costPrice) || 0,
+                        )}
+                      </span>
+                      .{' '}
+                      {selectedInventoryItem.trackInventory ? (
+                        <>
+                          Al vender este producto se descuentan{' '}
+                          <span className="font-medium text-foreground">
+                            {selectedInventoryItem.currentStock ?? 0}
+                          </span>{' '}
+                          unidades de ese artículo.
+                        </>
+                      ) : (
+                        <span className="text-amber-600 dark:text-amber-400">
+                          Este artículo no tiene control de stock: el producto
+                          no descontará nada al vender.
+                        </span>
+                      )}
+                    </>
+                  ) : linkableItems.length > 0 ? (
+                    'Al elegir un artículo se completan su nombre y su precio de compra (Costo). Al vender, el producto descuenta las unidades de ese artículo. Solo aparecen artículos con control de stock.'
+                  ) : sellableItems.length > 0 ? (
+                    'Ningún artículo de inventario tiene control de stock: no se puede vincular ninguno.'
+                  ) : (
+                    'No hay artículos de inventario para vincular todavía.'
+                  )}
+                </p>
+              </div>
+
               {/* Product Name */}
               <div className="space-y-2">
                 <Label htmlFor="name">Nombre del Producto</Label>

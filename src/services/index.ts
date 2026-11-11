@@ -1,6 +1,9 @@
 export { authService } from './auth-service';
 export { categoryService } from './category-service';
 export { headquarterService } from './headquarter-service';
+export { inventoryCategoryService } from './inventory-category-service';
+export { inventoryItemService } from './inventory-item-service';
+export { inventoryMovementService } from './inventory-movement-service';
 export { employeeService } from './employee-service';
 export { paymentEmployeeService } from './payment-employee-service';
 export { payrollAdjustmentService } from './payroll-adjustment-service';

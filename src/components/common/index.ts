@@ -17,6 +17,30 @@ export {
   PayrollTemplateFormDialog,
   type PayrollTemplateFormData,
 } from './payroll-template-form-dialog';
+export {
+  InventoryCategoryFormDialog,
+  type InventoryCategoryFormData,
+} from './inventory-category-form-dialog';
+export {
+  InventoryItemFormDialog,
+  type InventoryItemFormData,
+  type InventoryItemFormSubmit,
+} from './inventory-item-form-dialog';
+export {
+  InventoryMovementFormDialog,
+  type InventoryMovementFormData,
+  type InventoryMovementFormSubmit,
+  type InventoryMovementCorrection,
+} from './inventory-movement-form-dialog';
+export { InventoryMovementVoidDialog } from './inventory-movement-void-dialog';
+export {
+  INVENTORY_MOVEMENT_LABELS,
+  INVENTORY_MOVEMENT_OPTIONS,
+  INVENTORY_MOVEMENT_BADGE_CLASS,
+  addsStock,
+  INVENTORY_UNITS,
+  inventoryUnitLabel,
+} from './inventory-labels';
 export { ConfigSidebar } from './config-sidebar';
 export { MobileSidebarDrawer } from './mobile-sidebar-drawer';
 export { ProtectedRoute } from './protected-route';

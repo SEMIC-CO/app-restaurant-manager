@@ -360,6 +360,12 @@ export interface ApiProduct {
   imageUrl: string | null;
   headquarterId: number | null;
   userId: number | null;
+  /**
+   * Artículo de inventario vinculado (`inventory_items.id`). Si tiene, vender
+   * este producto genera una salida de stock. `null` = sin control de stock
+   * (los platos).
+   */
+  inventoryItemId: number | null;
 }
 
 export interface CreateProductPayload {
@@ -371,6 +377,8 @@ export interface CreateProductPayload {
   description?: string;
   /** URL externa opcional; la imagen del formulario viaja aparte (multipart). */
   imageUrl?: string;
+  /** Artículo de inventario asociado; `null` = sin control de stock. */
+  inventoryItemId?: number | null;
 }
 
 export interface UpdateProductPayload {
@@ -381,6 +389,8 @@ export interface UpdateProductPayload {
   available?: boolean;
   description?: string;
   imageUrl?: string;
+  /** `null` quita el vínculo con inventario. */
+  inventoryItemId?: number | null;
 }
 
 export interface ListProductsParams {
@@ -391,6 +401,147 @@ export interface ListProductsParams {
   available?: boolean;
 }
 
+// Inventario (API /inventory)
+/**
+ * Tipos de movimiento de stock. Los valores viajan en **inglés** (check
+ * constraint de la BD) y la UI los traduce con `INVENTORY_MOVEMENT_LABELS`.
+ * `ENTRY`/`ADJUSTMENT_IN` suman stock; `EXIT`/`ADJUSTMENT_OUT` lo restan.
+ */
+export type InventoryMovementType = 'ENTRY' | 'EXIT' | 'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT';
+
+/** Categoría de inventario — alcance empresa del JWT. */
+export interface ApiInventoryCategory {
+  id: number;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  companyId: number;
+}
+
+export interface CreateInventoryCategoryPayload {
+  name: string;
+  description?: string;
+}
+
+export interface UpdateInventoryCategoryPayload {
+  name?: string;
+  description?: string;
+  isActive?: boolean;
+}
+
+export interface ListInventoryCategoriesParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  isActive?: boolean;
+}
+
+/**
+ * Artículo de inventario. El catálogo es global (la tabla no tiene empresa ni
+ * sede); `currentStock` es el stock de la sede del JWT, calculado desde
+ * `inventory_movements` por el backend.
+ */
+export interface ApiInventoryItem {
+  id: number;
+  inventoryCategoryId: number | null;
+  code: string | null;
+  name: string;
+  description: string | null;
+  unitOfMeasure: string;
+  /**
+   * Costo unitario VIGENTE: promedio ponderado de las entradas. Lo calcula el
+   * backend (no se digita). El precio de venta vive en `products.price`.
+   */
+  costPrice: number;
+  trackInventory: boolean;
+  isActive: boolean;
+  currentStock?: number;
+}
+
+export interface CreateInventoryItemPayload {
+  name: string;
+  code?: string;
+  description?: string;
+  inventoryCategoryId?: number;
+  unitOfMeasure?: string;
+  trackInventory?: boolean;
+  isActive?: boolean;
+}
+
+export interface UpdateInventoryItemPayload {
+  name?: string;
+  code?: string;
+  description?: string;
+  inventoryCategoryId?: number;
+  unitOfMeasure?: string;
+  trackInventory?: boolean;
+  isActive?: boolean;
+}
+
+export interface ListInventoryItemsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  inventoryCategoryId?: number;
+  isActive?: boolean;
+}
+
+/** Movimiento (kardex) de la sede del JWT, enriquecido con nombres. */
+export interface ApiInventoryMovement {
+  id: number;
+  headquarterId: number;
+  inventoryItemId: number;
+  movementType: InventoryMovementType;
+  quantity: number;
+  /** Costo unitario: solo en las ENTRADAS (alimenta el costo vigente). */
+  unitCost: number | null;
+  /** Precio de venta: solo en las SALIDAS (sale price del producto). */
+  unitPrice: number | null;
+  reference: string | null;
+  reason: string | null;
+  createdBy: number | null;
+  createdAt: string | null;
+  /**
+   * Anulación (`POST /inventory/movements/:id/void`): el movimiento sigue en
+   * el kardex pero ya **no cuenta** ni para el stock ni para el costo vigente.
+   * `voidedAt` con valor = anulado.
+   */
+  voidedAt: string | null;
+  voidedBy: number | null;
+  voidReason: string | null;
+  /** Quién anuló (solo lo resuelve el listado; la creación no lo trae). */
+  voidedByName?: string | null;
+  itemName: string;
+  createdByName: string | null;
+}
+
+export interface CreateInventoryMovementPayload {
+  inventoryItemId: number;
+  movementType: InventoryMovementType;
+  /** Siempre positiva: el sentido lo da `movementType`. */
+  quantity: number;
+  unitCost?: number;
+  /** Costo TOTAL del lote (p.ej. canasta de30): deriva `unitCost`. */
+  totalCost?: number;
+  /** Precio de venta unitario en las salidas. */
+  unitPrice?: number;
+  reference?: string;
+  reason?: string;
+}
+
+export interface ListInventoryMovementsParams {
+  page?: number;
+  limit?: number;
+  inventoryItemId?: number;
+  movementType?: InventoryMovementType;
+  /** Fecha `YYYY-MM-DD` (inclusive). */
+  dateFrom?: string;
+  /** Fecha `YYYY-MM-DD` (inclusive). */
+  dateTo?: string;
+  search?: string;
+}
+
+// Órdenes (API /orders)
 export type ApiOrderStatus = 'pending' | 'preparing' | 'ready' | 'delivered' | 'paid' | 'cancelled';
 
 export interface ApiOrderItem {
