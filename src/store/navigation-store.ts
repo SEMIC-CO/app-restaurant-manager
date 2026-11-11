@@ -60,3 +60,12 @@ export const useNavigationStore = create<NavigationState>((set) => ({
 
   reset: () => set({ status: 'idle', isAdmin: false, menus: [] }),
 }));
+
+/**
+ * Destino inicial del usuario: el primer módulo que su perfil puede ver
+ * (p. ej. Mesas para MESERO, Cocina para JEFE DE COCINA). Si no tiene
+ * módulos, se queda el dashboard (`/`).
+ */
+export function firstMenuPath(menus: ApiNavigationMenu[]): string {
+  return menus[0]?.path ?? '/';
+}

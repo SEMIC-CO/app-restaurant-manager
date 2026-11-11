@@ -3,6 +3,7 @@ export { useOrdersStore } from './orders-store';
 export { useUiStore } from './ui-store';
 export {
   useNavigationStore,
+  firstMenuPath,
   type NavigationState,
   type NavigationStatus,
 } from './navigation-store';

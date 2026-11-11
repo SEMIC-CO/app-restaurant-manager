@@ -6,7 +6,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Button, Input, Label, Checkbox } from '@/components/ui';
 import { AuthLayout } from '@/app/layout';
 import { authService } from '@/services';
-import { useAuthStore, writeSessionScope } from '@/store';
+import { useAuthStore, useNavigationStore, firstMenuPath, writeSessionScope } from '@/store';
 import { toast } from '@/hooks';
 
 const loginSchema = z.object({
@@ -90,8 +90,19 @@ export function LoginPage() {
           title: '✅ Sesión iniciada',
           description: `Bienvenido, ${resp.data.user.name}.`,
         });
+        // El sidebar del perfil decide el destino: MESERO → /mesas,
+        // JEFE DE COCINA → /cocina, ADMINISTRADOR → / (dashboard).
+        await useNavigationStore.getState().load();
+
         const from = (location.state as { from?: { pathname: string; search?: string } } | null)?.from;
-        navigate(`${from?.pathname ?? '/'}${from?.search ?? ''}`, { replace: true });
+        // `/` es el destino genérico: si el perfil no tiene dashboard, se
+        // respeta su primer módulo en vez de forzar el dashboard.
+        const target =
+          from && from.pathname !== '/' && from.pathname !== '/login'
+            ? `${from.pathname}${from.search ?? ''}`
+            : firstMenuPath(useNavigationStore.getState().menus);
+
+        navigate(target, { replace: true });
       } else {
         if (resp.code === 403) {
           setActivationRequired(true);
