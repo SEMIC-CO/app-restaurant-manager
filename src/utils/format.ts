@@ -20,6 +20,19 @@ export function toISODate(date: Date = new Date()): string {
 }
 
 /**
+ * Rango del MES EN CURSO (día 1 → último día) en `YYYY-MM-DD` local.
+ * Período por defecto para "todos los pagos del mes" (nómina, historial).
+ * Se recalcula en cada llamada por si la pestaña queda abierta al cambiar de mes.
+ */
+export function currentMonthRange(): { from: string; to: string } {
+  const now = new Date();
+  return {
+    from: toISODate(new Date(now.getFullYear(), now.getMonth(), 1)),
+    to: toISODate(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+  };
+}
+
+/**
  * Format a date to relative time (e.g., "5 min")
  */
 export function formatRelativeTime(date: Date): string {

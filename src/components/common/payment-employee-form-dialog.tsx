@@ -21,6 +21,7 @@ import {
   Textarea,
 } from '@/components/ui';
 import type { ApiPaymentEmployee } from '@/types';
+import { currentMonthRange } from '@/utils';
 
 const paymentEmployeeSchema = z
   .object({
@@ -82,8 +83,9 @@ export function PaymentEmployeeFormDialog({
   } = useForm<PaymentEmployeeFormData>({
     resolver: zodResolver(paymentEmployeeSchema),
     defaultValues: {
-      periodStartDate: '',
-      periodEndDate: '',
+      // Período por defecto al crear: mes en curso (1 → último día).
+      periodStartDate: currentMonthRange().from,
+      periodEndDate: currentMonthRange().to,
       subtotal: 0,
       totalAdvances: 0,
       totalDeductions: 0,
@@ -94,10 +96,12 @@ export function PaymentEmployeeFormDialog({
   });
 
   React.useEffect(() => {
+    // Mes en curso: por defecto el período cubre el mes completo.
+    const month = currentMonthRange();
     if (open) {
       reset({
-        periodStartDate: payment?.periodStartDate ?? '',
-        periodEndDate: payment?.periodEndDate ?? '',
+        periodStartDate: payment?.periodStartDate ?? month.from,
+        periodEndDate: payment?.periodEndDate ?? month.to,
         subtotal: payment?.subtotal ?? 0,
         totalAdvances: payment?.totalAdvances ?? 0,
         totalDeductions: payment?.totalDeductions ?? 0,
@@ -107,8 +111,8 @@ export function PaymentEmployeeFormDialog({
       });
     } else {
       reset({
-        periodStartDate: '',
-        periodEndDate: '',
+        periodStartDate: month.from,
+        periodEndDate: month.to,
         subtotal: 0,
         totalAdvances: 0,
         totalDeductions: 0,
@@ -143,7 +147,7 @@ export function PaymentEmployeeFormDialog({
           <DialogDescription>
             {payment
               ? 'Actualiza el período y los montos del pago'
-              : `Registra el pago del empleado #${employeeId} por un período`}
+              : `Registra el pago del empleado #${employeeId} (por defecto, el mes en curso)`}
           </DialogDescription>
         </DialogHeader>
 

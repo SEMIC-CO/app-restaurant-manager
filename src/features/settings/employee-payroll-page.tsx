@@ -25,7 +25,7 @@ import {
 } from '@/components/ui';
 import { toast } from '@/hooks';
 import { employeeService, paymentEmployeeService, payrollAdjustmentService } from '@/services';
-import { formatCurrency } from '@/utils';
+import { formatCurrency, currentMonthRange } from '@/utils';
 import { cn } from '@/lib/utils';
 import type {
   ApiEmployee,
@@ -67,6 +67,14 @@ const ADJUSTMENT_STATUS_META: Record<
 
 type PaymentStatusFilter = 'todos' | ApiPaymentEmployeeStatus;
 type AdjustmentStatusFilter = 'todos' | ApiPayrollAdjustmentStatus;
+/**
+ * Período de la lista de pagos: `mes` = mes en curso (por defecto, trae todos
+ * los pagos del mes); `todos` = todo el historial con paginación del servidor.
+ */
+type PaymentPeriodFilter = 'mes' | 'todos';
+
+/** Límite del listado al filtrar por mes: el endpoint pagina en servidor. */
+const MONTH_PAYMENTS_LIMIT = 100;
 
 function apiErrorMessage(resp: ApiResponse<unknown>, fallback: string) {
   if (Array.isArray(resp.data)) return resp.data.join(', ');
@@ -96,6 +104,8 @@ export function EmployeePayrollPage() {
   const [paymentsLoading, setPaymentsLoading] = React.useState(true);
   const [paymentStatusFilter, setPaymentStatusFilter] =
     React.useState<PaymentStatusFilter>('todos');
+  const [paymentPeriodFilter, setPaymentPeriodFilter] =
+    React.useState<PaymentPeriodFilter>('mes');
 
   const [adjustments, setAdjustments] = React.useState<ApiPayrollAdjustment[]>([]);
   const [adjustmentsTotal, setAdjustmentsTotal] = React.useState(0);
@@ -133,16 +143,23 @@ export function EmployeePayrollPage() {
     }
   }, [employeeId, isValidEmployee]);
 
-  // Pagos
+  // Pagos. El endpoint NO acepta filtros de fecha, así que en `mes` se piden
+  // los últimos `MONTH_PAYMENTS_LIMIT` (el backend ordena por `periodStartDate
+  // DESC`, los del mes en curso siempre están arriba) y se filtran en cliente.
   const loadPayments = React.useCallback(
-    async (targetPage: number, status: PaymentStatusFilter) => {
+    async (
+      targetPage: number,
+      status: PaymentStatusFilter,
+      period: PaymentPeriodFilter,
+    ) => {
       if (!isValidEmployee) return;
+      const byMonth = period === 'mes';
       setPaymentsLoading(true);
       try {
         const resp = await paymentEmployeeService.list({
           employeeId,
-          page: targetPage,
-          limit: PAYMENTS_PAGE_SIZE,
+          page: byMonth ? 1 : targetPage,
+          limit: byMonth ? MONTH_PAYMENTS_LIMIT : PAYMENTS_PAGE_SIZE,
           status: status === 'todos' ? undefined : status,
         });
         if (resp.code !== 200) {
@@ -153,8 +170,17 @@ export function EmployeePayrollPage() {
           });
           return;
         }
-        setPayments(resp.data.items);
-        setPaymentsTotal(resp.data.total);
+        const month = currentMonthRange();
+        const items = byMonth
+          ? resp.data.items.filter(
+              (payment) =>
+                payment.periodStartDate >= month.from &&
+                payment.periodStartDate <= month.to,
+            )
+          : resp.data.items;
+        setPayments(items);
+        // Con filtro de mes se pagina en cliente: el total es lo filtrado.
+        setPaymentsTotal(byMonth ? items.length : resp.data.total);
       } catch {
         toast({
           variant: 'warning',
@@ -209,8 +235,8 @@ export function EmployeePayrollPage() {
 
   React.useEffect(() => {
     setPaymentsPage(1);
-    void loadPayments(1, paymentStatusFilter);
-  }, [loadPayments, paymentStatusFilter]);
+    void loadPayments(1, paymentStatusFilter, paymentPeriodFilter);
+  }, [loadPayments, paymentStatusFilter, paymentPeriodFilter]);
 
   React.useEffect(() => {
     setAdjustmentsPage(1);
@@ -266,7 +292,11 @@ export function EmployeePayrollPage() {
           : `Se registró un pago de ${formatCurrency(resp.data.totalPaid)}.`,
       });
       if (!isEdit) setPaymentsPage(1);
-      await loadPayments(isEdit ? paymentsPage : 1, paymentStatusFilter);
+      await loadPayments(
+        isEdit ? paymentsPage : 1,
+        paymentStatusFilter,
+        paymentPeriodFilter,
+      );
     } else {
       const message = apiErrorMessage(resp, 'Ocurrió un error al guardar el pago.');
       toast({
@@ -294,7 +324,7 @@ export function EmployeePayrollPage() {
         title: '✅ Pago anulado',
         description: 'El pago se ha anulado (VOIDED) y ya no se puede editar.',
       });
-      await loadPayments(paymentsPage, paymentStatusFilter);
+      await loadPayments(paymentsPage, paymentStatusFilter, paymentPeriodFilter);
     } else {
       toast({
         variant: 'warning',
@@ -456,7 +486,11 @@ export function EmployeePayrollPage() {
           <p className="-mt-4 text-xs text-muted-foreground">
             {loadedTotals.partial
               ? `Suma de ${payments.length} de ${paymentsTotal} pagos (los demás están en otras páginas).`
-              : `Suma de ${paymentsTotal} ${paymentsTotal === 1 ? 'pago' : 'pagos'}. Los totales los defines tú al registrar el pago.`}
+              : `Suma de ${paymentsTotal} ${
+                  paymentsTotal === 1 ? 'pago' : 'pagos'
+                }${
+                  paymentPeriodFilter === 'mes' ? ' del mes en curso' : ''
+                }. Los totales los defines tú al registrar el pago.`}
           </p>
 
           {/* Pagos */}
@@ -467,9 +501,32 @@ export function EmployeePayrollPage() {
                   <Wallet className="h-5 w-5" />
                   Pagos de nómina
                 </CardTitle>
-                <CardDescription>Un pago por período de este empleado</CardDescription>
+                <CardDescription>
+                  Un pago por período de este empleado · por defecto, el mes
+                  en curso
+                </CardDescription>
               </div>
               <div className="flex items-center gap-2">
+                <Label
+                  htmlFor="payment-period-filter"
+                  className="text-sm text-muted-foreground"
+                >
+                  Período
+                </Label>
+                <Select
+                  value={paymentPeriodFilter}
+                  onValueChange={(value) =>
+                    setPaymentPeriodFilter(value as PaymentPeriodFilter)
+                  }
+                >
+                  <SelectTrigger id="payment-period-filter" className="w-[150px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mes">Mes en curso</SelectItem>
+                    <SelectItem value="todos">Todos</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Label htmlFor="payment-filter" className="text-sm text-muted-foreground">
                   Estado
                 </Label>
@@ -529,7 +586,11 @@ export function EmployeePayrollPage() {
                     ) : payments.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="px-6 py-10 text-center">
-                          <p className="font-medium">Sin pagos registrados</p>
+                          <p className="font-medium">
+                            {paymentPeriodFilter === 'mes'
+                              ? 'Sin pagos en el mes en curso'
+                              : 'Sin pagos registrados'}
+                          </p>
                           <p className="mt-1 text-sm text-muted-foreground">
                             Usa el botón "Nuevo Pago" para registrar la primera quincena o mensualidad.
                           </p>
@@ -604,9 +665,14 @@ export function EmployeePayrollPage() {
               </div>
               <div className="border-t px-6 py-3 text-sm text-muted-foreground">
                 {paymentsTotal > 0
-                  ? `Mostrando ${payments.length} de ${paymentsTotal} pagos · página ${paymentsPage}`
+                  ? paymentPeriodFilter === 'mes'
+                    ? `Mostrando ${payments.length} ${
+                        payments.length === 1 ? 'pago' : 'pagos'
+                      } del mes en curso`
+                    : `Mostrando ${payments.length} de ${paymentsTotal} pagos · página ${paymentsPage}`
                   : 'Sin pagos'}
-                {paymentsTotal > PAYMENTS_PAGE_SIZE && (
+                {paymentPeriodFilter === 'todos' &&
+                  paymentsTotal > PAYMENTS_PAGE_SIZE && (
                   <span className="ml-3 inline-flex gap-2">
                     <Button
                       variant="ghost"
@@ -615,7 +681,7 @@ export function EmployeePayrollPage() {
                       onClick={() => {
                         const next = paymentsPage - 1;
                         setPaymentsPage(next);
-                        void loadPayments(next, paymentStatusFilter);
+                        void loadPayments(next, paymentStatusFilter, paymentPeriodFilter);
                       }}
                     >
                       Anterior
@@ -629,7 +695,7 @@ export function EmployeePayrollPage() {
                       onClick={() => {
                         const next = paymentsPage + 1;
                         setPaymentsPage(next);
-                        void loadPayments(next, paymentStatusFilter);
+                        void loadPayments(next, paymentStatusFilter, paymentPeriodFilter);
                       }}
                     >
                       Siguiente

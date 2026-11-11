@@ -18,13 +18,14 @@ import {
 import { toast } from '@/hooks';
 import { paymentEmployeeService } from '@/services';
 import { cn } from '@/lib/utils';
-import { formatCurrency } from '@/utils';
+import { formatCurrency, currentMonthRange } from '@/utils';
 import {
   type ApiPaymentHistoryRow,
   type ApiPaymentEmployeeStatus,
   type ApiResponse,
 } from '@/types';
-import { ChevronLeft, ChevronRight, Loader2, ReceiptText } from 'lucide-react';
+import { Ban, ChevronLeft, ChevronRight, Loader2, ReceiptText } from 'lucide-react';
+import { ConfirmDialog, ConfirmHighlight } from './confirm-dialog';
 
 const PAGE_SIZE = 10;
 
@@ -64,8 +65,12 @@ export function PaymentHistoryDialog({ open, onOpenChange }: PaymentHistoryDialo
   const [statusFilter, setStatusFilter] = React.useState<'todos' | ApiPaymentEmployeeStatus>(
     'todos',
   );
-  const [dateFrom, setDateFrom] = React.useState('');
-  const [dateTo, setDateTo] = React.useState('');
+  const [dateFrom, setDateFrom] = React.useState(() => currentMonthRange().from);
+  const [dateTo, setDateTo] = React.useState(() => currentMonthRange().to);
+
+  /** Pago elegido para anular y su confirmación. */
+  const [voidTarget, setVoidTarget] = React.useState<ApiPaymentHistoryRow | null>(null);
+  const [isVoidConfirmOpen, setIsVoidConfirmOpen] = React.useState(false);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -103,12 +108,33 @@ export function PaymentHistoryDialog({ open, onOpenChange }: PaymentHistoryDialo
     [],
   );
 
-  // Al abrir: primera página con los filtros actuales.
+  const wasOpen = React.useRef(open);
+
+  /**
+   * Al abrir: se muestra SIEMPRE el mes en curso (todos los pagos del mes)
+   * y se vuelve a la primera página. Si los filtros ya eran el mes, se carga
+   * aquí; si cambian, la re-ejecución del efecto por los deps hace la carga
+   * (una sola petición en cualquier caso).
+   */
   React.useEffect(() => {
-    if (open) {
+    const justOpened = open && !wasOpen.current;
+    wasOpen.current = open;
+    if (!open) return;
+
+    if (justOpened) {
+      const month = currentMonthRange();
       setPage(1);
-      void load(1, statusFilter, dateFrom, dateTo);
+      if (month.from === dateFrom && month.to === dateTo) {
+        void load(1, statusFilter, month.from, month.to);
+        return;
+      }
+      setDateFrom(month.from);
+      setDateTo(month.to);
+      return;
     }
+
+    setPage(1);
+    void load(1, statusFilter, dateFrom, dateTo);
   }, [open, load, statusFilter, dateFrom, dateTo]);
 
   const goToPage = (next: number) => {
@@ -117,6 +143,39 @@ export function PaymentHistoryDialog({ open, onOpenChange }: PaymentHistoryDialo
   };
 
   const totalPagado = rows.reduce((sum, row) => sum + row.totalPaid, 0);
+
+  /**
+   * Anula el pago seleccionado (`DELETE` → status `VOIDED`) y recarga la
+   * página actual con los filtros vigentes. Si falla, relanza para que el
+   * `ConfirmDialog` permanezca abierto y se pueda reintentar.
+   */
+  const handleVoid = async () => {
+    if (!voidTarget) return;
+
+    let message: string | null = null;
+    try {
+      const resp = await paymentEmployeeService.remove(voidTarget.id);
+      if (resp.code === 200) {
+        toast({
+          variant: 'success',
+          title: '✅ Pago anulado',
+          description: `El pago de ${voidTarget.employeeName} quedó anulado (VOIDED).`,
+        });
+        await load(page, statusFilter, dateFrom, dateTo);
+        return;
+      }
+      message = apiErrorMessage(resp, 'No se pudo anular el pago.');
+    } catch {
+      message = 'No se pudo conectar con el servidor.';
+    }
+
+    toast({
+      variant: 'warning',
+      title: '❌ Error al anular pago',
+      description: message,
+    });
+    throw new Error(message);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -128,7 +187,9 @@ export function PaymentHistoryDialog({ open, onOpenChange }: PaymentHistoryDialo
           </DialogTitle>
           <DialogDescription>
             Historial de pagos de la sede: período de cada pago, a quién se le
-            pagó, su estado y el monto.
+            pagó, su estado y el monto. Por defecto se muestra{' '}
+            <strong>el mes en curso</strong>; borra las fechas para ver todo el
+            historial.
           </DialogDescription>
         </DialogHeader>
 
@@ -223,19 +284,22 @@ export function PaymentHistoryDialog({ open, onOpenChange }: PaymentHistoryDialo
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Estado
                 </th>
+                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">
                     <Loader2 className="mx-auto mb-2 h-4 w-4 animate-spin" />
                     Cargando pagos...
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center">
+                  <td colSpan={8} className="px-4 py-10 text-center">
                     <p className="font-medium">Sin pagos registrados</p>
                     <p className="mt-1 text-sm text-muted-foreground">
                       Aún no se ha pagado nómina en este rango.
@@ -287,6 +351,27 @@ export function PaymentHistoryDialog({ open, onOpenChange }: PaymentHistoryDialo
                           {meta.label}
                         </Badge>
                       </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 hover:text-destructive"
+                            disabled={row.status === 'VOIDED'}
+                            title={
+                              row.status === 'VOIDED'
+                                ? 'Ya está anulado'
+                                : 'Anular pago'
+                            }
+                            onClick={() => {
+                              setVoidTarget(row);
+                              setIsVoidConfirmOpen(true);
+                            }}
+                          >
+                            <Ban className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })
@@ -330,6 +415,35 @@ export function PaymentHistoryDialog({ open, onOpenChange }: PaymentHistoryDialo
             </span>
           )}
         </div>
+
+        <ConfirmDialog
+          open={isVoidConfirmOpen}
+          // El destino NO se limpia al cerrar: el texto debe conservarse
+          // durante la animación de salida. Se reemplaza al abrir otra vez.
+          onOpenChange={setIsVoidConfirmOpen}
+          title="Anular pago de nómina"
+          description={
+            <>
+              Se anulará el pago de{' '}
+              <ConfirmHighlight>{voidTarget?.employeeName ?? '—'}</ConfirmHighlight>{' '}
+              del{' '}
+              <ConfirmHighlight>
+                {voidTarget
+                  ? `${formatDateOnly(voidTarget.periodStartDate)} – ${formatDateOnly(voidTarget.periodEndDate)}`
+                  : '—'}
+              </ConfirmHighlight>{' '}
+              por{' '}
+              <ConfirmHighlight>
+                {formatCurrency(voidTarget?.totalPaid ?? 0)}
+              </ConfirmHighlight>
+              . El pago quedará marcado como{' '}
+              <strong>anulado (VOIDED)</strong> y contará así en el historial.
+            </>
+          }
+          confirmLabel="Anular pago"
+          variant="destructive"
+          onConfirm={handleVoid}
+        />
       </DialogContent>
     </Dialog>
   );
