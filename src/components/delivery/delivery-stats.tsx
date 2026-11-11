@@ -1,16 +1,19 @@
-import { Package, FileText, Receipt } from 'lucide-react';
+import { Package, CheckCircle, Receipt } from 'lucide-react';
 import { Card } from '@/components/ui';
 
 interface DeliveryStatsProps {
+  /** Pedidos que la cocina dejó listos (`ready`). */
   readyCount: number;
-  pendingInvoice: number;
-  invoicedToday: number;
+  /** Pedidos entregados hoy (`delivered`). */
+  deliveredToday: number;
+  /** Todos los pedidos del día (cualquier estado). */
+  totalToday: number;
 }
 
 /**
  * Stats cards for delivery control page
  */
-export function DeliveryStats({ readyCount, pendingInvoice, invoicedToday }: DeliveryStatsProps) {
+export function DeliveryStats({ readyCount, deliveredToday, totalToday }: DeliveryStatsProps) {
   const stats = [
     {
       label: 'Listos para Entrega',
@@ -20,15 +23,15 @@ export function DeliveryStats({ readyCount, pendingInvoice, invoicedToday }: Del
       bgColor: 'bg-primary/10',
     },
     {
-      label: 'Por Facturar',
-      value: pendingInvoice,
-      icon: <FileText className="h-5 w-5" />,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100',
+      label: 'Entregados Hoy',
+      value: deliveredToday,
+      icon: <CheckCircle className="h-5 w-5" />,
+      color: 'text-green-600',
+      bgColor: 'bg-green-100',
     },
     {
-      label: 'Facturados Hoy',
-      value: invoicedToday,
+      label: 'Pedidos Hoy',
+      value: totalToday,
       icon: <Receipt className="h-5 w-5" />,
       color: 'text-primary',
       bgColor: 'bg-primary/10',

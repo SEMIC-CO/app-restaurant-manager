@@ -1,42 +1,52 @@
+import { useState } from 'react';
 import { CheckCircle, Clock } from 'lucide-react';
 import { Card, Button, Badge } from '@/components/ui';
+import {
+  ORDER_STATUS_BADGE_CLASSES,
+  ORDER_STATUS_LABELS,
+} from '@/components/pos';
 import { formatCurrency, formatOrderNumber, formatRelativeTime } from '@/utils';
+import { cn } from '@/lib/utils';
 import type { Order } from '@/types';
 
 interface DeliveryOrderCardProps {
   order: Order;
-  variant: 'ready' | 'pending-invoice';
+  /** `true` mientras se envía la entrega: deshabilita el botón. */
+  busy?: boolean;
+  /** Se pinta solo en pedidos `ready` (los demás no se entregan desde aquí). */
   onDeliver?: (orderId: string) => void;
-  onViewDetails?: (orderId: string) => void;
-  onGenerateInvoice?: (orderId: string) => void;
 }
 
 /**
- * Order card for delivery control showing customer info and actions
+ * Tarjeta de pedido para Entregas: cabecera con el badge del estado real,
+ * desglose de ítems (desplegable), total y —si el pedido está listo— el
+ * botón "Entregar Pedido" que lo pasa de `ready` a `delivered`.
  */
-export function DeliveryOrderCard({ 
-  order, 
-  variant,
-  onDeliver,
-  onViewDetails,
-  onGenerateInvoice,
-}: DeliveryOrderCardProps) {
+export function DeliveryOrderCard({ order, busy = false, onDeliver }: DeliveryOrderCardProps) {
   const timeAgo = formatRelativeTime(order.createdAt);
+  /** Despliega el desglose completo de ítems. */
+  const [showAllItems, setShowAllItems] = useState(false);
+
+  const visibleItems = showAllItems ? order.items : order.items.slice(0, 3);
+  const hiddenItems = order.items.length - visibleItems.length;
+  const isReady = order.status === 'ready';
 
   return (
-    <Card className="p-4">
+    <Card
+      className={cn('p-4', isReady && 'border-emerald-500/40 bg-emerald-500/5')}
+    >
       {/* Header: Order number + Status + Time */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
           <span className="text-lg font-bold text-primary">
             {formatOrderNumber(order.orderNumber)}
           </span>
-          {order.status === 'paid' && (
-            <Badge variant="success" className="text-xs">Pagado</Badge>
-          )}
-          {order.status === 'delivered' && (
-            <Badge variant="secondary" className="text-xs">Entregado</Badge>
-          )}
+          <Badge
+            variant="outline"
+            className={cn('text-[11px]', ORDER_STATUS_BADGE_CLASSES[order.status])}
+          >
+            {ORDER_STATUS_LABELS[order.status]}
+          </Badge>
         </div>
         <div className="flex items-center gap-1 text-sm text-muted-foreground">
           <Clock className="h-3.5 w-3.5" />
@@ -51,7 +61,7 @@ export function DeliveryOrderCard({
 
       {/* Order items summary */}
       <div className="mt-3 space-y-1">
-        {order.items.slice(0, 3).map((item) => (
+        {visibleItems.map((item) => (
           <div key={item.id} className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">
               {item.quantity}x {item.productName}
@@ -59,52 +69,47 @@ export function DeliveryOrderCard({
             <span>{formatCurrency(item.subtotal)}</span>
           </div>
         ))}
-        {order.items.length > 3 && (
-          <p className="text-sm text-muted-foreground">
-            +{order.items.length - 3} más...
-          </p>
+        {hiddenItems > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowAllItems(true)}
+            className="text-sm text-primary hover:underline"
+          >
+            +{hiddenItems} más...
+          </button>
+        )}
+        {showAllItems && order.items.length > 3 && (
+          <button
+            type="button"
+            onClick={() => setShowAllItems(false)}
+            className="text-sm text-muted-foreground hover:underline"
+          >
+            Ocultar detalles
+          </button>
         )}
       </div>
 
       {/* Total */}
       <div className="mt-3 flex items-center justify-between border-t pt-3">
-        <span className="text-sm text-muted-foreground">
-          {variant === 'ready' ? 'Total' : 'Total a Facturar'}
-        </span>
+        <span className="text-sm text-muted-foreground">Total</span>
         <span className="text-lg font-bold text-primary">
           {formatCurrency(order.total)}
         </span>
       </div>
 
-      {/* Actions */}
-      <div className="mt-4">
-        {variant === 'ready' ? (
-          <Button 
+      {/* Actions: solo los pedidos listos se entregan desde la tarjeta */}
+      {isReady && (
+        <div className="mt-4">
+          <Button
             className="w-full gap-2"
+            disabled={busy}
             onClick={() => onDeliver?.(order.id)}
           >
             <CheckCircle className="h-4 w-4" />
-            Entregar Pedido
+            {busy ? 'Entregando…' : 'Entregar Pedido'}
           </Button>
-        ) : (
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              className="flex-1"
-              onClick={() => onViewDetails?.(order.id)}
-            >
-              Ver Detalles
-            </Button>
-            <Button 
-              className="flex-1 gap-2"
-              onClick={() => onGenerateInvoice?.(order.id)}
-            >
-              <span>📄</span>
-              Generar Factura
-            </Button>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </Card>
   );
 }

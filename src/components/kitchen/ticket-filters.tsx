@@ -1,9 +1,12 @@
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui';
-import type { OrderType } from '@/types';
+import type { OrderStatus, OrderType } from '@/types';
 
-/** `'completados'` = pedidos ya listos o entregados (fuera de la cola activa). */
-type TicketFilterType = 'all' | OrderType | 'completados';
+/**
+ * `'completados'` = pedidos ya listos o entregados (fuera de la cola activa).
+ * Se aceptan también los **estados** para filtros como los de Entregas.
+ */
+type TicketFilterType = 'all' | OrderType | 'completados' | OrderStatus;
 
 interface TicketFilter {
   type: TicketFilterType;
@@ -23,7 +26,7 @@ interface TicketFiltersProps {
  */
 export function TicketFilters({ filters, activeFilter, onFilterChange }: TicketFiltersProps) {
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       {filters.map((filter) => (
         <Button
           key={filter.type}
