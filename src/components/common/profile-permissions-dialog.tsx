@@ -204,16 +204,16 @@ export function ProfilePermissionsDialog({
             {readOnly && (
               <Badge variant="outline" className="gap-1 text-[11px] uppercase">
                 <Lock className="h-3 w-3" aria-hidden="true" />
-                Solo lectura
+                Plantilla
               </Badge>
             )}
           </DialogTitle>
           <DialogDescription>
             {readOnly
               ? isAdminProfile
-                ? 'El perfil ADMINISTRADOR ve todos los módulos del sistema.'
-                : 'Los perfiles del sistema se comparten entre empresas: solo se pueden consultar.'
-              : 'Marca los módulos que verá este perfil en el menú. Un submenú solo se muestra junto a su módulo.'}
+                ? 'El perfil ADMINISTRADOR ve siempre todos los módulos del sistema; no necesita permisos asignados.'
+                : 'Los perfiles del sistema son plantillas compartidas entre empresas, por eso solo se consultan. Para asignar módulos crea un perfil de empresa con "Nuevo perfil" y asígnalo a tus usuarios.'
+              : 'Marca los módulos que verá este perfil en el menú. Se guardan en su perfil y el usuario los verá al iniciar sesión.'}
           </DialogDescription>
         </DialogHeader>
 

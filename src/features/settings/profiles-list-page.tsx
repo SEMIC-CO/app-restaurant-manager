@@ -5,6 +5,7 @@ import {
   ConfirmDialog,
   ConfirmHighlight,
   ProfileFormDialog,
+  ProfilePermissionsDialog,
   type ProfileFormData,
 } from '@/components/common';
 import {
@@ -21,7 +22,7 @@ import { toast } from '@/hooks';
 import { profileService } from '@/services';
 import { cn } from '@/lib/utils';
 import type { ApiProfile, ApiResponse } from '@/types';
-import { IdCard, Lock, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { IdCard, Lock, Pencil, Plus, Search, Settings2, Trash2 } from 'lucide-react';
 
 function apiErrorMessage(resp: ApiResponse<unknown>, fallback: string) {
   if (Array.isArray(resp.data)) return resp.data.join(', ');
@@ -43,6 +44,8 @@ export function ProfilesListPage() {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<ApiProfile | null>(null);
   const [deleting, setDeleting] = React.useState<ApiProfile | null>(null);
+  const [permissionsProfile, setPermissionsProfile] =
+    React.useState<ApiProfile | null>(null);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -226,7 +229,9 @@ export function ProfilesListPage() {
                   Perfiles registrados
                 </CardTitle>
                 <CardDescription>
-                  Los perfiles del sistema no se pueden modificar ni eliminar
+                  Configura qué módulos ve cada perfil. Los perfiles del sistema
+                  son plantillas compartidas: se consultan, pero para asignar
+                  módulos crea un perfil de empresa.
                 </CardDescription>
               </div>
               <div className="relative">
@@ -306,36 +311,56 @@ export function ProfilesListPage() {
                               </Badge>
                             </td>
                             <td className="px-6 py-4">
-                              {isSystem ? (
-                                /* Sin botones: `disabled` bloquea el puntero y el
-                                   `title` nunca llegaría a mostrarse, así que la
-                                   restricción se explica de forma visible. */
-                                <span className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-                                  <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-                                  Solo lectura
-                                </span>
-                              ) : (
-                                <div className="flex items-center justify-center gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleEdit(profile)}
-                                    className="h-8 w-8"
-                                    title="Editar perfil"
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setDeleting(profile)}
-                                    className="h-8 w-8 hover:text-destructive"
-                                    title="Eliminar perfil"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              )}
+                              <div className="flex flex-wrap items-center justify-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setPermissionsProfile(profile)}
+                                  className="h-8 gap-2"
+                                  title={
+                                    isSystem
+                                      ? 'Ver los módulos asignados al perfil'
+                                      : 'Configurar los módulos del perfil'
+                                  }
+                                >
+                                  <Settings2 className="h-4 w-4" />
+                                  {isSystem ? 'Ver permisos' : 'Configurar'}
+                                </Button>
+
+                                {isSystem ? (
+                                  /* Los perfiles SYSTEM son plantillas
+                                     globales: el backend responde `403` al
+                                     intentar cambiarles los permisos. */
+                                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <Lock
+                                      className="h-3.5 w-3.5"
+                                      aria-hidden="true"
+                                    />
+                                    Plantilla
+                                  </span>
+                                ) : (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleEdit(profile)}
+                                      className="h-8 w-8"
+                                      title="Editar perfil"
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => setDeleting(profile)}
+                                      className="h-8 w-8 hover:text-destructive"
+                                      title="Eliminar perfil"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
@@ -352,6 +377,14 @@ export function ProfilesListPage() {
             onOpenChange={setIsDialogOpen}
             profile={editing ?? undefined}
             onSubmit={handleSubmit}
+          />
+
+          <ProfilePermissionsDialog
+            open={permissionsProfile !== null}
+            onOpenChange={(open) => {
+              if (!open) setPermissionsProfile(null);
+            }}
+            profile={permissionsProfile}
           />
 
           <ConfirmDialog
