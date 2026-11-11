@@ -13,6 +13,9 @@ export { CustomerFormDialog } from './customer-form-dialog';
 export { ConfirmDialog, ConfirmHighlight } from './confirm-dialog';
 export { PaymentHistoryDialog } from './payment-history-dialog';
 export { ProfileFormDialog, type ProfileFormData } from './profile-form-dialog';
+export { ProfilePermissionsDialog } from './profile-permissions-dialog';
+export { AppNav } from './app-nav';
+export { NavIcon } from './nav-icon';
 export {
   PayrollTemplateFormDialog,
   type PayrollTemplateFormData,

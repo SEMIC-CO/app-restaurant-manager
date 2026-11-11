@@ -981,6 +981,64 @@ export interface UpdateProfilePayload {
   profile?: string;
 }
 
+// Navegación (API /menus, /submenus, /permissions) — catálogo global
+/**
+ * Menú de primer nivel. `groupName` es el bloque del sidebar
+ * (`PRINCIPAL`, `CONFIGURACIÓN`, `SISTEMA`); el `icon` es el nombre del
+ * icono de `lucide-react` que el frontend resuelve con `NavIcon`.
+ */
+export interface ApiMenu {
+  id: number;
+  menu: string;
+  icon: string;
+  path: string;
+  groupName: string | null;
+  createdBy: number;
+}
+
+/** Submenú: página anidada dentro de un menú. */
+export interface ApiSubmenu {
+  id: number;
+  submenu: string;
+  icon: string;
+  path: string;
+  menuId: number;
+  groupName: string;
+  createdBy: number;
+}
+
+/** Permiso: al menos uno de `menuId`, `submenuId` o `actionId` viene informado. */
+export interface ApiPermission {
+  id: number;
+  menuId: number | null;
+  submenuId: number | null;
+  actionId: number | null;
+}
+
+export interface ApiNavigationSubmenu {
+  id: number;
+  submenu: string;
+  icon: string;
+  path: string;
+  groupName: string;
+}
+
+export interface ApiNavigationMenu {
+  id: number;
+  menu: string;
+  icon: string;
+  path: string;
+  groupName: string | null;
+  submenus: ApiNavigationSubmenu[];
+}
+
+/** Respuesta de `GET /menus/mine`: sidebar del perfil del JWT. */
+export interface ApiNavigation {
+  /** `true` para el perfil ADMINISTRADOR: ve todo el catálogo. */
+  isAdmin: boolean;
+  menus: ApiNavigationMenu[];
+}
+
 // Pago de nómina en lote (API /payments-employees/batch)
 export interface BatchPaymentItem {
   employeeId: number;

@@ -40,6 +40,7 @@ pnpm build                # tsc -b && vite build
 - Every directory has a barrel `index.ts`. Import through barrels (`@/features`, `@/components/ui`) and add new exports to them.
 - Path alias `@/` → `src/` (configured in both `vite.config.ts` and `tsconfig.app.json`).
 - Adding a feature: types in `src/types/index.ts` → service → store (if needed) → components → page in `src/features/` → export from `src/features/index.ts` → route in `src/App.tsx`.
+- **Sidebar is DB-driven**: `ConfigSidebar`/`MobileSidebarDrawer` render `AppNav`, which paints what `GET /menus/mine` returns for the session profile (`useNavigationStore`, loaded by `useNavigationBootstrap()` on login/refresh and reset on logout). Menus come grouped by `groupName` and icons resolve by name with `NavIcon`. Adding a module means adding a menu row to the API's `db/seed-menu-navigation.sql` — not editing a static array. Per-profile assignment lives in `/configuracion/perfiles` (`ProfilePermissionsDialog`).
 - Forms: react-hook-form + zod + shadcn/ui following the pattern in `FORMS-GUIDE.md` (Spanish; reference implementations: `src/components/common/product-form-dialog.tsx`, `customer-form-dialog.tsx`).
 
 ## Styling

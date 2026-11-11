@@ -51,6 +51,27 @@ class ProfileService {
         });
     }
 
+    /** IDs de los permisos (módulos) asignados al perfil. */
+    async getPermissions(id: number): Promise<ApiResponse<number[]>> {
+        return apiFetch<ApiResponse<number[]>>(`profiles/${id}/permissions`, {
+            method: 'GET',
+        });
+    }
+
+    /**
+     * Reemplaza los permisos del perfil. Responde `403` si el perfil es SYSTEM
+     * (los perfiles de plataforma son compartidos por todas las empresas).
+     */
+    async assignPermissions(
+        id: number,
+        permissionIds: number[],
+    ): Promise<ApiResponse<number[]>> {
+        return apiFetch<ApiResponse<number[]>>(`profiles/${id}/permissions`, {
+            method: 'PUT',
+            body: JSON.stringify({ permissionIds }),
+        });
+    }
+
 }
 
 export const profileService = new ProfileService();

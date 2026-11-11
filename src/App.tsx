@@ -32,10 +32,11 @@ import {
 } from '@/features';
 import { Toaster } from '@/components/ui';
 import { MobileSidebarDrawer, ProtectedRoute, PublicRoute } from '@/components/common';
-import { useSessionBootstrap } from '@/hooks';
+import { useSessionBootstrap, useNavigationBootstrap } from '@/hooks';
 
 function App() {
   useSessionBootstrap();
+  useNavigationBootstrap();
 
   return (
     <BrowserRouter>
