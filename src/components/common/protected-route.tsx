@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui';
 import { firstMenuPath, useAuthStore, useNavigationStore } from '@/store';
 import { canAccessPath } from '@/utils';
 
@@ -7,6 +8,31 @@ function FullScreenLoader() {
   return (
     <div className="flex min-h-screen items-center justify-center">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  );
+}
+
+/**
+ * Si el sidebar no se pudo cargar no se puede saber qué rutas permite el
+ * perfil, así que se bloquea el acceso (fail-closed) en lugar de dejar pasar
+ * cualquier URL.
+ */
+function NavigationErrorScreen() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-6 text-center">
+      <p className="text-lg font-medium">No se pudo cargar tu menú</p>
+      <p className="max-w-sm text-sm text-muted-foreground">
+        Revisa tu conexión e inténtalo de nuevo. Si el problema continúa, cierra
+        sesión y vuelve a entrar.
+      </p>
+      <Button
+        variant="outline"
+        className="gap-2"
+        onClick={() => void useNavigationStore.getState().load()}
+      >
+        <RefreshCw className="h-4 w-4" />
+        Reintentar
+      </Button>
     </div>
   );
 }
@@ -39,6 +65,10 @@ export function ProtectedRoute() {
   // a ciegas.
   if (navigationStatus === 'idle' || navigationStatus === 'loading') {
     return <FullScreenLoader />;
+  }
+
+  if (navigationStatus === 'error') {
+    return <NavigationErrorScreen />;
   }
 
   // El ADMINISTRADOR ve todo el catálogo, incluidas rutas fuera del menú.
