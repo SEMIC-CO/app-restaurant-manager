@@ -14,7 +14,7 @@ import type {
  * (list, getById, create, update, remove). Alcance sede del JWT.
  *
  * El front lo usa sobre todo para derivar el estado ocupada/libre de las
- * mesas a partir de las órdenes activas (pending/preparing/ready).
+ * mesas a partir de las órdenes sin pagar (pending/preparing/ready/delivered).
  */
 class OrderService {
 

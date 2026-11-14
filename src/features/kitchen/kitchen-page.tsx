@@ -10,9 +10,6 @@ import { toast, useOrderEvents } from "@/hooks";
 import { orderService, productService } from "@/services";
 import { mapApiOrder, toISODate } from "@/utils";
 
-/** Refresco de la cola de cocina (pedidos que entran/salen desde otras vistas). */
-const POLL_INTERVAL_MS = 30000;
-
 function apiErrorMessage(resp: { code: number; msg: string; data: unknown }, fallback: string) {
   const data: unknown = resp.data;
   if (Array.isArray(data)) return data.join(", ");
@@ -27,7 +24,7 @@ function apiErrorMessage(resp: { code: number; msg: string; data: unknown }, fal
  *
  * El filtro **"Listos / Entregados"** muestra el histórico de tickets que
  * ya terminaron su paso por cocina (`ready` + `delivered`), con su propio
- * conteo; los datos siguen refrescándose por polling y Socket.IO.
+ * conteo; los datos se refrescan al instante con Socket.IO.
  */
 export function KitchenPage() {
   const [activeFilter, setActiveFilter] = useState<string>("all");
@@ -104,12 +101,9 @@ export function KitchenPage() {
     }
   }, []);
 
+  // Carga inicial; el refresco posterior lo dispara el socket de abajo.
   useEffect(() => {
     void load();
-    const interval = setInterval(() => {
-      void load();
-    }, POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
   }, [load]);
 
   // Tiempo real (Socket.IO): cada alta, cambio o borrado de pedido recarga la

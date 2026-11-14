@@ -15,11 +15,18 @@ import { useCartStore } from "@/store";
 import { formatOrderNumber, mapApiOrder } from "@/utils";
 import type { FloorTable, Order } from "@/types";
 
-/** Estados de pedido que la caja debe poder cobrar (mantienen la mesa ocupada). */
-const ACTIVE_ORDER_STATUSES = ["pending", "preparing", "ready"] as const;
-
-/** Refresco de la lista de pedidos (altas/cambios desde otras vistas). */
-const POLL_INTERVAL_MS = 30000;
+/**
+ * Estados que la Caja lista para cobrar: los activos (pendiente, en
+ * preparación y listo) y los **entregados** todavía sin pagar. El pedido
+ * entregado es justamente el que falta cobrar: la matriz del backend lo
+ * lleva de `delivered` a `paid` al facturarlo.
+ */
+const CHARGEABLE_ORDER_STATUSES = [
+  "pending",
+  "preparing",
+  "ready",
+  "delivered",
+] as const;
 
 function apiErrorMessage(resp: { code: number; msg: string; data: unknown }, fallback: string) {
   const data: unknown = resp.data;
@@ -28,10 +35,11 @@ function apiErrorMessage(resp: { code: number; msg: string; data: unknown }, fal
 }
 
 /**
- * Caja (/caja): dos filtros en el área principal — **Pedidos** (activos:
- * pendiente, en preparación y listo) y **Mesas** (las ocupadas). Al hacer
- * clic en una mesa o en un pedido, sus datos (ítems, cliente y mesa) se
- * cargan en el ticket de la caja con su total real.
+ * Caja (/caja): dos filtros en el área principal — **Pedidos** (los que
+ * faltan por cobrar: pendientes, en preparación, listos y entregados) y
+ * **Mesas** (las ocupadas). Al hacer clic en una mesa o en un pedido, sus
+ * datos (ítems, cliente y mesa) se cargan en el ticket de la caja con su
+ * total real.
  */
 export function POSPage() {
   /** Arranca siempre en el filtro "Pedidos". */
@@ -43,7 +51,11 @@ export function POSPage() {
   /** Formulario de cobro (Cobrar → datos del cliente, efectivo y factura). */
   const [chargeOpen, setChargeOpen] = useState(false);
 
-  const { tables, loading: tablesLoading, refresh } = useFloorTables();
+  // Sin polling: la Caja se refresca con el socket (abajo), que recarga
+  // tanto los pedidos como la ocupación de las mesas.
+  const { tables, loading: tablesLoading, refresh } = useFloorTables({
+    poll: false,
+  });
   const loadOrder = useCartStore((state) => state.loadOrder);
   const clearCart = useCartStore((state) => state.clearCart);
   const loadedOrder = useCartStore((state) => state.loadedOrder);
@@ -52,7 +64,7 @@ export function POSPage() {
     try {
       const [ordersResps, products] = await Promise.all([
         Promise.all(
-          ACTIVE_ORDER_STATUSES.map((status) =>
+          CHARGEABLE_ORDER_STATUSES.map((status) =>
             orderService.list({ limit: 100, status }),
           ),
         ),
@@ -89,19 +101,26 @@ export function POSPage() {
     }
   }, []);
 
+  // Carga inicial; el refresco posterior lo dispara el socket de abajo.
   useEffect(() => {
     void load();
-    const interval = setInterval(() => {
-      void load();
-    }, POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
   }, [load]);
+
+  /**
+   * El socket avisa de cada alta, cambio o borrado de pedido: con eso basta
+   * para que los pedidos, los productos del ticket y la ocupación de las
+   * mesas queden al día. La Caja ya no hace polling.
+   */
+  const handleOrderEvent = useCallback(() => {
+    void load();
+    void refresh();
+  }, [load, refresh]);
 
   // Tiempo real (Socket.IO): el ticket y las mesas se actualizan al instante.
   useOrderEvents({
-    onOrderCreated: () => void load(),
-    onOrderUpdated: () => void load(),
-    onOrderDeleted: () => void load(),
+    onOrderCreated: handleOrderEvent,
+    onOrderUpdated: handleOrderEvent,
+    onOrderDeleted: handleOrderEvent,
   });
 
   const occupiedTables = useMemo(
@@ -167,7 +186,7 @@ export function POSPage() {
 
   /**
    * Facturación completada: se limpia el ticket y se refrescan las mesas
-   * al instante para ver la mesa liberada (además del polling y el socket).
+   * al instante para ver la mesa liberada (además del socket).
    */
   const handleFacturado = () => {
     handleClearTicket();
@@ -215,9 +234,10 @@ export function POSPage() {
     ) : orders.length === 0 ? (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-card py-16 text-center">
         <span className="text-4xl">🧾</span>
-        <p className="mt-4 font-medium">No hay pedidos activos</p>
+        <p className="mt-4 font-medium">No hay pedidos por cobrar</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          En cuanto haya pedidos pendientes o en preparación aparecerán aquí.
+          Aparecerán aquí los pedidos pendientes, en preparación, listos o
+          entregados.
         </p>
       </div>
     ) : (

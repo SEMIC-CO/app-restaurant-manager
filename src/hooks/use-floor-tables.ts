@@ -3,11 +3,28 @@ import { orderService, sectionService, tableService } from '@/services';
 import { toast } from './use-toast';
 import type { ApiOrder, FloorTable, Section } from '@/types';
 
-/** Estados de orden que mantienen la mesa ocupada (los "activos" del backend). */
-const ACTIVE_ORDER_STATUSES = ['pending', 'preparing', 'ready'] as const;
+/**
+ * Estados de orden que mantienen la mesa ocupada: los activos (pendiente,
+ * en preparación y listo) y los **entregados** todavía sin pagar. La mesa
+ * se libera cuando la caja factura el pedido (`paid`).
+ */
+const ACTIVE_ORDER_STATUSES = ['pending', 'preparing', 'ready', 'delivered'] as const;
 
-/** Refresco periódico del estado de ocupación (libre/ocupada). */
+/**
+ * Refresco periódico del estado de ocupación (libre/ocupada). Solo aplica
+ * cuando el componente no tiene otra fuente de eventos: la Caja se entera
+ * por el socket y apaga este polling.
+ */
 const POLL_INTERVAL_MS = 30000;
+
+interface UseFloorTablesOptions {
+  /**
+   * Refrescar cada 30 s (por defecto `true`). Pásalo como `false` cuando el
+   * caller se entere por Socket.IO y llame a `refresh()` a mano, para no
+   * duplicar peticiones.
+   */
+  poll?: boolean;
+}
 
 interface FloorTablesResult {
   /** Mesas ACTIVAS de la sede con su estado de ocupación derivado de las órdenes. */
@@ -22,10 +39,12 @@ interface FloorTablesResult {
  * Mesas del piso + secciones reales (API /tables y /sections).
  *
  * El estado ocupada/libre NO viene del backend: se deriva cruzando las mesas
- * con las órdenes activas (pending/preparing/ready) por `idTable`. Solo se
- * listan mesas `ACTIVO`; las desactivadas no aparecen.
+ * con las órdenes que aún no se pagan (pending/preparing/ready/delivered)
+ * por `idTable`. Solo se listan mesas `ACTIVO`; las desactivadas no aparecen.
  */
-export function useFloorTables(): FloorTablesResult {
+export function useFloorTables({
+  poll = true,
+}: UseFloorTablesOptions = {}): FloorTablesResult {
   const [tables, setTables] = useState<FloorTable[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,11 +107,14 @@ export function useFloorTables(): FloorTablesResult {
 
   useEffect(() => {
     void load();
+    // Sin polling: quien llame con `poll: false` se entera por el socket y
+    // refresca con `refresh()`.
+    if (!poll) return;
     const interval = setInterval(() => {
       void load();
     }, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [load]);
+  }, [load, poll]);
 
   return { tables, sections, loading, refresh: load };
 }

@@ -14,9 +14,6 @@ import { orderService, productService } from '@/services';
 import { mapApiOrder, toISODate } from '@/utils';
 import type { Order, OrderStatus } from '@/types';
 
-/** Refresco de la cola de entregas (pedidos que entran/salen desde otras vistas). */
-const POLL_INTERVAL_MS = 30000;
-
 /** Filtro de la vista del día: todos los pedidos o un estado en particular. */
 type DayFilter = 'all' | OrderStatus;
 
@@ -30,7 +27,7 @@ function apiErrorMessage(resp: { code: number; msg: string; data: unknown }, fal
  * Control de entregas con datos reales de la sede (solo el día en curso):
  *
  * - **Listos para Entrega**: los pedidos que la cocina deja en `ready`
- *   aparecen AL INSTANTE (Socket.IO + polling), ordenados por quien lleva
+ *   aparecen AL INSTANTE (Socket.IO), ordenados por quien lleva
  *   más esperando; el botón "Entregar Pedido" los pasa a `delivered`.
  * - **Todos los pedidos de hoy**: los pedidos del día en **tarjetas** con
  *   filtros por estado (Todos / Pendientes / En preparación / Listos /
@@ -87,12 +84,9 @@ export function DeliveryPage() {
     }
   }, []);
 
+  // Carga inicial; el refresco posterior lo dispara el socket de abajo.
   useEffect(() => {
     void load();
-    const interval = setInterval(() => {
-      void load();
-    }, POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
   }, [load]);
 
   // Tiempo real (Socket.IO): cuando la cocina marca un pedido como listo
