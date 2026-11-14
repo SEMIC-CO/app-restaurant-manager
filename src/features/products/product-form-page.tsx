@@ -813,7 +813,7 @@ export function ProductFormPage() {
                 className="cursor-pointer hover:text-foreground"
                 onClick={() => navigate('/configuracion/productos')}
               >
-                Productos
+                Menú
               </span>
               <span>/</span>
               <span className="text-foreground">
