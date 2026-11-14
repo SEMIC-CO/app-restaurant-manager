@@ -1,6 +1,6 @@
 import { apiFetch } from './useFetch';
 import { buildQuery } from './query-utils';
-import type { ApiResponse, SalesReport } from '@/types';
+import type { ApiResponse, DashboardReport, SalesReport } from '@/types';
 
 interface SalesReportParams {
   /** Fecha inicial `AAAA-MM-DD` (inclusive). */
@@ -10,9 +10,8 @@ interface SalesReportParams {
 }
 
 /**
- * Servicio de reportes — espejo de ReportsController (`GET /reports/sales`).
- * Devuelve resumen (pedidos, unidades, más/menos vendido), ranking y detalle
- * por producto del rango consultado, más el mix por categorías.
+ * Servicio de reportes — espejo de ReportsController (`GET /reports/sales`
+ * y `GET /reports/dashboard`).
  */
 class ReportService {
   async getSalesReport(
@@ -23,6 +22,20 @@ class ReportService {
         dateFrom: params.dateFrom,
         dateTo: params.dateTo,
       })}`,
+      { method: 'GET' },
+    );
+  }
+
+  /**
+   * Dashboard del día: KPIs con comparativa al día anterior, pedidos
+   * activos, salón, alertas y últimos pedidos.
+   *
+   * `date` es la fecha **local** del cliente (`AAAA-MM-DD`); si no se envía,
+   * el backend usa la del servidor.
+   */
+  async getDashboard(date?: string): Promise<ApiResponse<DashboardReport>> {
+    return apiFetch<ApiResponse<DashboardReport>>(
+      `reports/dashboard${buildQuery({ date })}`,
       { method: 'GET' },
     );
   }

@@ -706,6 +706,94 @@ export interface SalesReport {
   categoryMix: ReportCategoryMix[];
 }
 
+// ─── Dashboard (GET /reports/dashboard) ──────────────────────────────────────
+
+/** Métricas de un día: pedidos **no cancelados** de la sede. */
+export interface DaySalesSummary {
+  /** Ingresos: Σ total de los pedidos del día (subtotal − descuento). */
+  sales: number;
+  /** Pedidos no cancelados creados en el día. */
+  orders: number;
+  /** Unidades vendidas. */
+  units: number;
+  /** Ventas ÷ pedidos (0 si no hubo pedidos). */
+  avgTicket: number;
+}
+
+/**
+ * Variación de cada KPI respecto al día anterior, en porcentaje con un
+ * decimal. `null` cuando ayer no tuvo base (0), para no pintar deltas raros.
+ */
+export interface DashboardDelta {
+  sales: number | null;
+  orders: number | null;
+  units: number | null;
+  avgTicket: number | null;
+}
+
+export interface DashboardKpis {
+  today: DaySalesSummary;
+  yesterday: DaySalesSummary;
+  delta: DashboardDelta;
+}
+
+/** Pedidos sin cobrar: los activos y los entregados pendientes de pago. */
+export interface ActiveOrdersSummary {
+  pending: number;
+  preparing: number;
+  ready: number;
+  delivered: number;
+  total: number;
+}
+
+/** Mesas ACTIVAS de la sede y cuántas están ocupadas. */
+export interface TablesSummary {
+  total: number;
+  occupied: number;
+  available: number;
+}
+
+/** Artículo sin stock vigente en la sede (stock ≤ 0). */
+export interface StockAlert {
+  id: number;
+  name: string;
+  unitOfMeasure: string;
+  stock: number;
+}
+
+export interface DashboardAlerts {
+  /** Hasta 10 artículos agotados. */
+  outOfStock: StockAlert[];
+  /** Facturas de la sede todavía sin cobrar. */
+  pendingInvoices: number;
+  /** Pedidos cancelados en el día. */
+  cancelledOrders: number;
+}
+
+/** Pedido reciente del día (tabla "Últimos Movimientos"). */
+export interface RecentOrder {
+  id: number;
+  orderNumber: string;
+  customerName: string | null;
+  status: ApiOrderStatus;
+  total: number;
+  /** ISO desde la API; se pinta en hora local. */
+  orderDatetime: string;
+}
+
+/** Snapshot del dashboard de la sede para un día. */
+export interface DashboardReport {
+  /** Día del reporte (`AAAA-MM-DD`). */
+  date: string;
+  kpi: DashboardKpis;
+  activeOrders: ActiveOrdersSummary;
+  tables: TablesSummary;
+  products: ReportProductSales[];
+  categoryMix: ReportCategoryMix[];
+  alerts: DashboardAlerts;
+  recentOrders: RecentOrder[];
+}
+
 // Empleados (API /employees) — alcance sede del JWT
 /** Empleado del backend (`employees`). */
 export interface ApiEmployee {

@@ -13,7 +13,7 @@ import {
   InvoiceDetailPage,
   ProfilePage,
   ProductFormPage,
-  SettingsPage,
+  DashboardPage,
   ProductsListPage,
   CategoriesListPage,
   InventoryPage,
@@ -51,7 +51,7 @@ function App() {
 
         {/* Rutas privadas (requieren sesión) */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<SettingsPage />} />
+          <Route path="/" element={<DashboardPage />} />
           <Route path="/mesas" element={<TablesPage />} />
           <Route path="/pedidos" element={<OrdersPage />} />
           <Route path="/pedidos/nuevo" element={<OrderCreatePage />} />

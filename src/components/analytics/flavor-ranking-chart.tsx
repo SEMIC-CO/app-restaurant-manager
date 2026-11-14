@@ -22,13 +22,15 @@ export function FlavorRankingChart({ flavors, onViewDetails }: FlavorRankingChar
           <h3 className="font-semibold">Ranking de Productos</h3>
           <p className="text-sm text-muted-foreground">Los más vendidos del período</p>
         </div>
-        <Button
-          variant="link"
-          onClick={onViewDetails}
-          className="text-sm"
-        >
-          Ver detalles
-        </Button>
+        {onViewDetails && (
+          <Button
+            variant="link"
+            onClick={onViewDetails}
+            className="text-sm"
+          >
+            Ver detalles
+          </Button>
+        )}
       </div>
 
       {flavors.length === 0 ? (

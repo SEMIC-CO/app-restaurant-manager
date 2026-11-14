@@ -1,4 +1,3 @@
-export { SettingsPage } from './settings-page';
 export { ProductsListPage } from './products-list-page';
 export { CategoriesListPage } from './categories-list-page';
 export { UsersListPage } from './users-list-page';

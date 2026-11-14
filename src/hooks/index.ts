@@ -5,6 +5,7 @@ export { useToast, toast } from './use-toast';
 export { useSessionBootstrap } from './use-session-bootstrap';
 export { useNavigationBootstrap } from './use-navigation-bootstrap';
 export { useOrderEvents } from './use-order-events';
+export { useDashboard } from './use-dashboard';
 export {
   useImageUpload,
   compressImage,
