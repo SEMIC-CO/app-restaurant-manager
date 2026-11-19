@@ -3,6 +3,7 @@ export { POSPage, CheckoutPage } from './checkout';
 export { KitchenPage } from './kitchen';
 export { DeliveryPage } from './delivery';
 export { AnalyticsPage } from './analytics';
+export { ExpensesPage } from './expenses';
 export { BillingPage, InvoiceDetailPage } from './billing';
 export { InventoryPage } from './inventory';
 export { ProfilePage } from './profile';

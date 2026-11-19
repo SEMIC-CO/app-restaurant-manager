@@ -1184,3 +1184,46 @@ export interface ListPaymentHistoryParams {
   /** Filtro sobre `periodStartDate` (inclusive). */
   dateTo?: string;
 }
+
+// ─── Gastos operativos (API /expenses) — alcance sede ────────────────────────
+
+/** Mismos valores que las facturas: `Cash` | `Card` | `Transfer`. */
+export type ExpensePaymentMethod = 'Cash' | 'Card' | 'Transfer';
+
+/** Gasto operativo de la sede (`GET /expenses`). */
+export interface Expense {
+  id: number;
+  concept: string;
+  category: string | null;
+  amount: number;
+  /** Fecha del gasto `YYYY-MM-DD`. */
+  expenseDate: string;
+  paymentMethod: ExpensePaymentMethod | null;
+  notes: string | null;
+  headquarterId: number;
+  /** Usuario que registró el gasto. */
+  userId: number | null;
+}
+
+export interface CreateExpensePayload {
+  concept: string;
+  category?: string | null;
+  amount: number;
+  /** `YYYY-MM-DD`. */
+  expenseDate: string;
+  paymentMethod?: ExpensePaymentMethod | null;
+  notes?: string | null;
+}
+
+export type UpdateExpensePayload = Partial<CreateExpensePayload>;
+
+export interface ListExpensesParams {
+  page?: number;
+  limit?: number;
+  /** Filtro sobre `expenseDate` (inclusive). */
+  dateFrom?: string;
+  /** Filtro sobre `expenseDate` (inclusive). */
+  dateTo?: string;
+  category?: string;
+  search?: string;
+}

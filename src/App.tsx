@@ -9,6 +9,7 @@ import {
   KitchenPage,
   DeliveryPage,
   AnalyticsPage,
+  ExpensesPage,
   BillingPage,
   InvoiceDetailPage,
   ProfilePage,
@@ -66,6 +67,7 @@ function App() {
           <Route path="/facturacion" element={<BillingPage />} />
           <Route path="/facturacion/:invoiceId" element={<InvoiceDetailPage />} />
           <Route path="/reportes" element={<AnalyticsPage />} />
+          <Route path="/gastos" element={<ExpensesPage />} />
           <Route path="/inventario" element={<InventoryPage />} />
           <Route path="/perfil" element={<ProfilePage />} />
           <Route path="/productos/nuevo" element={<ProductFormPage />} />

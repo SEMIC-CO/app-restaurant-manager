@@ -22,3 +22,4 @@ export { connectOrderEvents } from './order-events';
 export type { OrderEventHandlers } from './order-events';
 export { productService } from './product-service';
 export { reportService } from './report-service';
+export { expenseService } from './expense-service';
