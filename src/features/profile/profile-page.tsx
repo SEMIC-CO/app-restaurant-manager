@@ -12,7 +12,8 @@ import {
 import { Button, Card, CardContent, Skeleton } from '@/components/ui';
 import { toast } from '@/hooks';
 import { authService, companyService, headquarterService } from '@/services';
-import { useAuthStore } from '@/store';
+import { useAuthStore, useNavigationStore } from '@/store';
+import { canAccessPath } from '@/utils';
 import type { ApiResponse, AuthProfile } from '@/types';
 
 function apiErrorMessage(resp: ApiResponse<unknown>, fallback: string) {
@@ -33,6 +34,21 @@ export function ProfilePage() {
   const [profile, setProfile] = React.useState<AuthProfile | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [editOpen, setEditOpen] = React.useState(false);
+
+  // Mismo criterio que el backend: escribir sobre la empresa o la sede
+  // exige el módulo "Configuración General" (o ser ADMINISTRADOR).
+  const isAdmin = useNavigationStore((state) => state.isAdmin);
+  const menus = useNavigationStore((state) => state.menus);
+  const allowedPaths = React.useMemo(
+    () =>
+      menus.flatMap((menu) => [
+        menu.path,
+        ...menu.submenus.map((submenu) => submenu.path),
+      ]),
+    [menus],
+  );
+  const canManageCompany =
+    isAdmin || canAccessPath('/configuracion/sistema', allowedPaths);
 
   const loadProfile = React.useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
@@ -106,9 +122,9 @@ export function ProfilePage() {
       failures.push('No se pudieron guardar tus datos (sin conexión)');
     }
 
-    // 2) Nombre de la empresa
+    // 2) Nombre de la empresa (solo con el módulo de configuración)
     const companyName = values.companyName.trim();
-    if (profile.company && companyName !== profile.company.name) {
+    if (canManageCompany && profile.company && companyName !== profile.company.name) {
       try {
         const resp = await companyService.updateMine({ name: companyName });
         if (resp.code !== 200) {
@@ -135,7 +151,7 @@ export function ProfilePage() {
         address !== (headquarter.address ?? '') ||
         locationChanged);
 
-    if (headquarter && headquarterChanged) {
+    if (canManageCompany && headquarter && headquarterChanged) {
       try {
         const resp = await headquarterService.update(headquarter.id, {
           name: headquarterName,
@@ -252,6 +268,7 @@ export function ProfilePage() {
                 open={editOpen}
                 onOpenChange={setEditOpen}
                 profile={profile}
+                canEditCompany={canManageCompany}
                 onSubmit={handleSaveProfile}
               />
             </>

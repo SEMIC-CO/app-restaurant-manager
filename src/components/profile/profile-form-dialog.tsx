@@ -62,6 +62,12 @@ interface ProfileFormDialogProps {
   /** Perfil actual: con él se precargan todos los campos al abrir. */
   profile: AuthProfile;
   /**
+   * `false` cuando el perfil no tiene el módulo "Configuración General":
+   * la sección de empresa y sede queda de solo lectura (el backend responde
+   * 403 igual, esto es para que no se intente).
+   */
+  canEditCompany?: boolean;
+  /**
    * Guarda en el backend (tres endpoints: perfil, empresa y sede); si
    * alguno rechaza, el diálogo queda abierto.
    */
@@ -83,6 +89,7 @@ export function ProfileFormDialog({
   open,
   onOpenChange,
   profile,
+  canEditCompany = true,
   onSubmit,
 }: ProfileFormDialogProps) {
   const {
@@ -203,6 +210,17 @@ export function ProfileFormDialog({
   };
 
   const handleFormSubmit = async (values: ProfileFormData) => {
+    // Sin permiso de edición los selectores están deshabilitados y sus
+    // valores son los de lectura: no se valida ni se envía la ubicación.
+    if (!canEditCompany) {
+      try {
+        await onSubmit(values, null);
+      } catch {
+        // El caller ya mostró el aviso; el diálogo queda abierto.
+      }
+      return;
+    }
+
     const picked = [countryId, departamentId, cityId];
     const somePicked = picked.some((value) => value !== null);
     const allPicked = picked.every((value) => value !== null);
@@ -300,11 +318,22 @@ export function ProfileFormDialog({
               Empresa y sede
             </p>
 
+            {!canEditCompany && (
+              <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                Solo los perfiles con el módulo{' '}
+                <span className="font-medium text-foreground">
+                  Configuración General
+                </span>{' '}
+                pueden cambiar estos datos. Aquí los ves en lectura.
+              </p>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="profile-company">Nombre de la empresa *</Label>
               <Input
                 id="profile-company"
                 placeholder="Nombre del negocio"
+                disabled={!canEditCompany}
                 {...register('companyName')}
               />
               {errors.companyName && (
@@ -320,6 +349,7 @@ export function ProfileFormDialog({
                 <Input
                   id="profile-headquarter"
                   placeholder="Sede principal"
+                  disabled={!canEditCompany}
                   {...register('headquarterName')}
                 />
                 {errors.headquarterName && (
@@ -334,6 +364,7 @@ export function ProfileFormDialog({
                 <Input
                   id="profile-address"
                   placeholder="Calle 1 #2-3"
+                  disabled={!canEditCompany}
                   {...register('address')}
                 />
                 {errors.address && (
@@ -350,6 +381,7 @@ export function ProfileFormDialog({
                 <Select
                   value={countryId === null ? NO_VALUE : String(countryId)}
                   onValueChange={handleCountryChange}
+                  disabled={!canEditCompany}
                 >
                   <SelectTrigger id="profile-country">
                     <SelectValue placeholder="Selecciona un país" />
@@ -370,7 +402,11 @@ export function ProfileFormDialog({
                 <Select
                   value={departamentId === null ? NO_VALUE : String(departamentId)}
                   onValueChange={handleDepartamentChange}
-                  disabled={countryId === null || departaments.length === 0}
+                  disabled={
+                    !canEditCompany ||
+                    countryId === null ||
+                    departaments.length === 0
+                  }
                 >
                   <SelectTrigger id="profile-departament">
                     <SelectValue placeholder="Selecciona un departamento" />
@@ -394,7 +430,11 @@ export function ProfileFormDialog({
                 <Select
                   value={cityId === null ? NO_VALUE : String(cityId)}
                   onValueChange={handleCityChange}
-                  disabled={departamentId === null || cities.length === 0}
+                  disabled={
+                    !canEditCompany ||
+                    departamentId === null ||
+                    cities.length === 0
+                  }
                 >
                   <SelectTrigger id="profile-city">
                     <SelectValue placeholder="Selecciona una ciudad" />
