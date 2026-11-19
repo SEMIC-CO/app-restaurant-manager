@@ -1,6 +1,11 @@
 import * as React from 'react';
 import { ConfigLayout } from '@/app/layout';
-import { ConfigSidebar, SectionFormDialog, TableFormDialog } from '@/components/common';
+import {
+  ConfigSidebar,
+  SectionFormDialog,
+  TableFormDialog,
+  type TableFormData,
+} from '@/components/common';
 import { Card, CardContent, Button, Input, Badge, Switch } from '@/components/ui';
 import { sectionService, tableService } from '@/services';
 import { toast } from '@/hooks';
@@ -134,16 +139,93 @@ export function TablesListPage() {
     setIsTableDialogOpen(true);
   };
 
-  const handleSubmitTable = async (data: {
-    name: string;
-    cantPeople: number;
-    sectionId: number;
-  }) => {
+  const handleSubmitTable = async (data: TableFormData) => {
     const isEdit = Boolean(editingTable);
+
+    // Alta masiva (solo al crear): genera "{base} 1"…"{base} N" con el
+    // nombre como base (sin números finales; vacío → "Mesa"), saltando los
+    // nombres que ya existan en la sección.
+    if (!isEdit && data.quantity > 1) {
+      const base =
+        data.name.trim().replace(/\s+\d+$/, '') || 'Mesa';
+      const existingResp = await tableService.list({
+        sectionId: data.sectionId,
+        limit: 100,
+      });
+      const existingNames = new Set(
+        existingResp.code === 200
+          ? existingResp.data.items.map((table) => table.name)
+          : [],
+      );
+
+      const names: string[] = [];
+      for (let i = 1; names.length < data.quantity && i <= 999; i += 1) {
+        const name = `${base} ${i}`;
+        if (!existingNames.has(name)) names.push(name);
+      }
+
+      let created = 0;
+      let failure: string | null = null;
+      for (const name of names) {
+        try {
+          const resp = await tableService.create({
+            name,
+            cantPeople: data.cantPeople,
+            sectionId: data.sectionId,
+          });
+          if (resp.code === 200 || resp.code === 201) {
+            created += 1;
+            continue;
+          }
+          failure = apiErrorMessage(resp, 'Ocurrió un error al crear las mesas.');
+          break;
+        } catch {
+          failure = 'No se pudo conectar con el servidor.';
+          break;
+        }
+      }
+
+      await refreshAll(1);
+
+      if (failure === null) {
+        toast({
+          variant: 'success',
+          title: `✅ ${created} mesas creadas`,
+          description: `${names[0]} … ${names[names.length - 1]}`,
+        });
+        return;
+      }
+      if (created > 0) {
+        // Parcial: se cierra el diálogo (ya hay mesas creadas) y se avisa.
+        toast({
+          variant: 'warning',
+          title: `⚠️ ${created} de ${data.quantity} mesas creadas`,
+          description: failure,
+        });
+        return;
+      }
+      // Nada creado: se lanza para que el diálogo permanezca abierto.
+      toast({
+        variant: 'warning',
+        title: '❌ Error al crear mesas',
+        description: failure,
+      });
+      throw new Error(failure);
+    }
+
+    // Creación simple (una mesa) o edición: mismo flujo de siempre.
     const resp =
       isEdit && editingTable
-        ? await tableService.update(editingTable.id, data)
-        : await tableService.create(data);
+        ? await tableService.update(editingTable.id, {
+            name: data.name,
+            cantPeople: data.cantPeople,
+            sectionId: data.sectionId,
+          })
+        : await tableService.create({
+            name: data.name.trim(),
+            cantPeople: data.cantPeople,
+            sectionId: data.sectionId,
+          });
 
     if (resp.code === 200 || resp.code === 201) {
       toast({
@@ -286,8 +368,8 @@ export function TablesListPage() {
           <div className="border-b bg-background px-6 py-4 rounded-lg">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h1 className="text-2xl font-bold">Mesas</h1>
-                <p className="text-muted-foreground">
+                <h1 className="text-2xl font-semibold tracking-tight">Mesas</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
                   Administra las mesas y las secciones del restaurante
                 </p>
               </div>
