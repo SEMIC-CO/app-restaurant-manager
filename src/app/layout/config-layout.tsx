@@ -9,12 +9,12 @@ interface ConfigLayoutProps {
 export function ConfigLayout({ sidebar, main }: ConfigLayoutProps) {
   return (
     <div className="flex h-screen w-full overflow-hidden bg-muted/30 relative">
-      <aside className="hidden w-[220px] flex-shrink-0 border-r bg-card lg:block h-full overflow-y-auto">
+      <aside className="hidden w-[220px] flex-shrink-0 border-r bg-card lg:block h-full overflow-y-auto print:hidden">
         {sidebar}
       </aside>
 
       <div className="flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden">
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 print:hidden">
           <AppHeader />
         </div>
 
