@@ -179,10 +179,10 @@ export function ProductsListPage() {
           <div className="border-b bg-background px-6 py-4 rounded-lg">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h1 className="text-2xl font-bold">
+                <h1 className="text-2xl font-semibold tracking-tight">
                   Productos del Menú Registrados
                 </h1>
-                <p className="text-muted-foreground">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Administre los productos del menú
                 </p>
               </div>

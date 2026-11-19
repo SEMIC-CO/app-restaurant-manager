@@ -156,8 +156,8 @@ export function NominaConfigPage() {
           <div className="border-b bg-background px-6 py-4 rounded-lg">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold">Configuración de nómina</h1>
-                <p className="mt-1 text-muted-foreground">
+                <h1 className="text-2xl font-semibold tracking-tight">Configuración de nómina</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
                   Define la frecuencia y el monto base de cada empleado. Un único
                   registro por empleado.
                 </p>

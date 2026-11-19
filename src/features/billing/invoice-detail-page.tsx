@@ -271,10 +271,10 @@ export function InvoiceDetailPage() {
           <div className="flex items-start justify-between mb-6">
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold">Detalle de Facturación</h1>
+                <h1 className="text-2xl font-semibold tracking-tight">Detalle de Facturación</h1>
                 {getStatusBadge(invoice.status)}
               </div>
-              <p className="text-muted-foreground">
+              <p className="mt-1 text-sm text-muted-foreground">
                 {order
                   ? `Comprobante fiscal del pedido ${formatOrderNumber(order.orderNumber)} · ${
                       orderStatus ? ORDER_STATUS_LABELS[orderStatus] : ''

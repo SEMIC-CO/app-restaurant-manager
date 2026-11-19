@@ -821,8 +821,8 @@ export function ProductFormPage() {
               </span>
             </div>
             <div>
-              <h1 className="text-2xl font-bold">Administración de Productos</h1>
-              <p className="text-muted-foreground">
+              <h1 className="text-2xl font-semibold tracking-tight">Administración de Productos</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
                 {isEditing
                   ? 'Actualiza los datos del producto.'
                   : 'Configura los detalles del producto basado en el inventario actual.'}

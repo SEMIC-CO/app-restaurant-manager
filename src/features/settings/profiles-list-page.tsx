@@ -175,8 +175,8 @@ export function ProfilesListPage() {
           <div className="border-b bg-background px-6 py-4 rounded-lg">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold">Perfiles</h1>
-                <p className="mt-1 text-muted-foreground">
+                <h1 className="text-2xl font-semibold tracking-tight">Perfiles</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
                   Agrupa los permisos de tus usuarios. Elige un perfil al crear
                   a cada usuario.
                 </p>

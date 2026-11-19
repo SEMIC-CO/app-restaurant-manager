@@ -383,8 +383,8 @@ export function NominaPaymentsPage() {
                   <ArrowLeft className="h-4 w-4" />
                   Configuración de nómina
                 </Button>
-                <h1 className="mt-2 text-2xl font-bold">Pagos de nómina</h1>
-                <p className="mt-1 text-muted-foreground">
+                <h1 className="mt-2 text-2xl font-semibold tracking-tight">Pagos de nómina</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
                   Carga la nómina del período, elige a quién pagar y ajusta los
                   montos antes de pagar.
                 </p>

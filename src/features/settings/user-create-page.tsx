@@ -310,10 +310,10 @@ export function UserCreatePage() {
               </div>
             </div>
             <div className="ml-14">
-              <h1 className="text-2xl font-bold">
+              <h1 className="text-2xl font-semibold tracking-tight">
                 {isEditing ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
               </h1>
-              <p className="text-muted-foreground">
+              <p className="mt-1 text-sm text-muted-foreground">
                 {isEditing
                   ? 'Actualiza los datos, el perfil o la sede del usuario'
                   : 'Agrega un usuario al sistema y asíignale su perfil y su sede'}

@@ -237,8 +237,8 @@ export function EmployeesListPage() {
           <div className="border-b bg-background px-6 py-4 rounded-lg">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h1 className="text-2xl font-bold">Empleados</h1>
-                <p className="text-muted-foreground">
+                <h1 className="text-2xl font-semibold tracking-tight">Empleados</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
                   Registra al personal de tu sede y gestiona sus pagos de nómina
                 </p>
               </div>

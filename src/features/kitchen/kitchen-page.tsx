@@ -256,8 +256,10 @@ export function KitchenPage() {
           {/* 2b) Ticket grid (main) */}
           <main className="flex-1 overflow-auto p-6 min-w-0">
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Cola de Tickets</h2>
+              <div className="space-y-4">
+                <h2 className="text-2xl font-semibold tracking-tight">
+                  Cola de Tickets
+                </h2>
                 <TicketFilters
                   filters={ticketFilters}
                   activeFilter={activeFilter}

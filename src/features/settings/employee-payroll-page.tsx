@@ -423,14 +423,14 @@ export function EmployeePayrollPage() {
         <p className="text-sm text-muted-foreground">Cargando empleado...</p>
       ) : employeeError || !employee ? (
         <div>
-          <h1 className="text-2xl font-bold">Empleado no disponible</h1>
-          <p className="mt-1 text-muted-foreground">{employeeError ?? 'No se encontró el empleado.'}</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Empleado no disponible</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{employeeError ?? 'No se encontró el empleado.'}</p>
         </div>
       ) : (
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold">{employee.name}</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">{employee.name}</h1>
               <Badge
                 variant={employee.active ? 'secondary' : 'outline'}
                 className={cn(

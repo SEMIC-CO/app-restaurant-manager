@@ -208,8 +208,8 @@ export function CategoriesListPage() {
           <div className="border-b bg-background px-6 py-4 rounded-lg">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h1 className="text-2xl font-bold">Categorías</h1>
-                <p className="text-muted-foreground">
+                <h1 className="text-2xl font-semibold tracking-tight">Categorías</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
                   Administra las categorías de productos de tu sede
                 </p>
               </div>
