@@ -112,3 +112,38 @@ html {
 .badge-pop {
   animation: badge-pop 0.35s ease-out;
 }
+
+/* ── Campos de fecha (`input[type="date"]`) ──────────────────────────────
+   El indicador nativo del calendario (Chrome/Edge) queda pegado al texto y
+   diminuto en campos anchos. Selector global: aplica a TODOS los campos
+   fecha de la app sin tocar cada componente. El indicador se ancla al
+   extremo derecho, se agranda (18px) y se ilumina al hover/focus. */
+input[type="date"] {
+  position: relative;
+}
+
+input[type="date"]::-webkit-datetime-edit {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  /* deja libre la banda donde vive el ícono del calendario */
+  padding-right: 1.5rem;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: opacity 0.15s ease;
+}
+
+input[type="date"]:hover::-webkit-calendar-picker-indicator,
+input[type="date"]:focus-visible::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
