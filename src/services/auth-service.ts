@@ -2,17 +2,21 @@ import { apiFetch, refreshSession } from './useFetch';
 import type {
     ActivateAccountPayload,
     ApiResponse,
+    AuthProfile,
+    ChangePasswordPayload,
     LoginPayload,
     LoginResult,
     MessageResponse,
     RegisterPayload,
     RegisterResponse,
     ResendActivationPayload,
+    UpdateProfilePayload,
 } from '@/types';
 
 /**
  * Servicio de autenticación — espejo de los endpoints `auth/*` del backend
- * (AuthController: register, login, refresh, logout, activate, resendActivation).
+ * (AuthController: register, login, refresh, logout, activate, resendActivation
+ * + UserProfileController: profile, password).
  */
 class AuthService {
 
@@ -55,6 +59,35 @@ class AuthService {
     async resendActivation(payload: ResendActivationPayload): Promise<ApiResponse<MessageResponse>> {
         return apiFetch<ApiResponse<MessageResponse>>('auth/resend-activation', {
             method: 'POST',
+            body: JSON.stringify(payload),
+        });
+    }
+
+    /**
+     * Datos del propio perfil con perfil/empresa/sede resueltos.
+     * No depende del módulo Usuarios: cualquier perfil puede leerlo.
+     */
+    async getProfile(): Promise<ApiResponse<AuthProfile>> {
+        return apiFetch<ApiResponse<AuthProfile>>('auth/profile', {
+            method: 'GET',
+        });
+    }
+
+    /** Editar nombre, correo y teléfono del propio perfil. */
+    async updateProfile(payload: UpdateProfilePayload): Promise<ApiResponse<AuthProfile>> {
+        return apiFetch<ApiResponse<AuthProfile>>('auth/profile', {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+        });
+    }
+
+    /**
+     * Cambiar la contraseña propia: pide la actual (`401` si no coincide)
+     * y la nueva debe tener mínimo 8 caracteres.
+     */
+    async changePassword(payload: ChangePasswordPayload): Promise<ApiResponse<MessageResponse>> {
+        return apiFetch<ApiResponse<MessageResponse>>('auth/password', {
+            method: 'PUT',
             body: JSON.stringify(payload),
         });
     }

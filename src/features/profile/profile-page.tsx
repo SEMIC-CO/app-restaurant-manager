@@ -1,139 +1,192 @@
-import { useState } from 'react';
-import { Search, Bell, HelpCircle } from 'lucide-react';
-import { Input, Button } from '@/components/ui';
-import { ProfileLayout } from '@/app/layout/profile-layout';
+import * as React from 'react';
+import { AlertCircle, RotateCcw } from 'lucide-react';
+import { ConfigLayout } from '@/app/layout';
+import { ConfigSidebar } from '@/components/common';
 import {
-  ProfileSidebar,
+  ChangePasswordCard,
   ProfileCard,
-  ProductManagementCard,
-  AdditionalConfigCard,
+  ProfileFormDialog,
+  type ProfileFormData,
 } from '@/components/profile';
+import { Button, Card, CardContent, Skeleton } from '@/components/ui';
+import { toast } from '@/hooks';
+import { authService } from '@/services';
+import { useAuthStore } from '@/store';
+import type { ApiResponse, AuthProfile } from '@/types';
 
-// Mock data
-const mockUser = {
-  name: 'Juan Pérez',
-  role: 'Administrador de Sucursal',
-  email: 'juan.perez@empanadas.com',
-  location: 'Bogotá, Colombia',
-};
-
-const mockProducts = [
-  {
-    id: '1',
-    name: 'Empanada de Carne Tradicional',
-    description: 'Rellena de carne picada, cebolla y especias',
-    price: 2500,
-    isAvailable: true,
-  },
-  {
-    id: '2',
-    name: 'Empanada de Pollo y Arroz',
-    description: 'Pechuga desmechada con arroz y vegetales',
-    price: 2200,
-    isAvailable: true,
-  },
-  {
-    id: '3',
-    name: 'Jamón y Queso Especial',
-    description: 'Doble queso fundido con jamón premium',
-    price: 3000,
-    isAvailable: false,
-  },
-];
+function apiErrorMessage(resp: ApiResponse<unknown>, fallback: string) {
+  if (Array.isArray(resp.data)) return resp.data.join(', ');
+  return resp.msg || fallback;
+}
 
 /**
- * Profile and settings page
+ * Mi perfil (`/perfil`): datos del usuario con perfil/empresa/sede
+ * resueltos (`GET /auth/profile`), edición de nombre/correo/teléfono y
+ * cambio de contraseña — todo de autoservicio, sin depender del módulo
+ * Usuarios.
+ *
+ * Usa el mismo layout que el resto de la app (`ConfigLayout` + `ConfigSidebar`,
+ * el sidebar real cargado del menú del perfil).
  */
 export function ProfilePage() {
-  const [products, setProducts] = useState(mockProducts);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [profile, setProfile] = React.useState<AuthProfile | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [editOpen, setEditOpen] = React.useState(false);
 
-  const handleLogout = () => {
-    console.log('Logging out...');
+  const loadProfile = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const resp = await authService.getProfile();
+      if (resp.code === 200 && resp.data) {
+        setProfile(resp.data);
+      } else {
+        toast({
+          variant: 'warning',
+          title: 'No se pudo cargar tu perfil',
+          description: apiErrorMessage(resp, 'Intenta de nuevo en unos segundos.'),
+        });
+      }
+    } catch {
+      toast({
+        variant: 'warning',
+        title: 'No se pudo cargar tu perfil',
+        description: 'No se pudo conectar con el servidor.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadProfile();
+  }, [loadProfile]);
+
+  /** Deja el store de sesión al día con lo recién guardado (nombre/correo). */
+  const syncSession = (updated: AuthProfile) => {
+    const { accessToken, user } = useAuthStore.getState();
+    if (accessToken && user) {
+      useAuthStore.getState().setSession(accessToken, {
+        ...user,
+        name: updated.name,
+        email: updated.email,
+      });
+    }
   };
 
-  const handleEditProfile = () => {
-    console.log('Editing profile...');
+  const handleSaveProfile = async (values: ProfileFormData): Promise<void> => {
+    let resp: ApiResponse<AuthProfile>;
+    try {
+      resp = await authService.updateProfile(values);
+    } catch {
+      toast({
+        variant: 'warning',
+        title: 'Sin conexión',
+        description: 'No se pudo contactar con el servidor.',
+      });
+      throw new Error('network');
+    }
+
+    if (resp.code === 200 && resp.data) {
+      setProfile(resp.data);
+      syncSession(resp.data);
+      toast({
+        title: 'Perfil actualizado',
+        description: 'Tus datos se guardaron correctamente.',
+      });
+      return;
+    }
+
+    toast({
+      variant: 'warning',
+      title: 'No se pudo guardar',
+      description: apiErrorMessage(resp, 'Revisa los datos e intenta de nuevo.'),
+    });
+    throw new Error('save-failed');
   };
 
-  const handleAddProduct = () => {
-    console.log('Adding new product...');
-  };
+  const handleChangePassword = async (payload: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<void> => {
+    let resp: ApiResponse<{ message: string }>;
+    try {
+      resp = await authService.changePassword(payload);
+    } catch {
+      toast({
+        variant: 'warning',
+        title: 'Sin conexión',
+        description: 'No se pudo contactar con el servidor.',
+      });
+      throw new Error('network');
+    }
 
-  const handleEditProduct = (productId: string) => {
-    console.log('Editing product:', productId);
-  };
+    if (resp.code === 200) {
+      toast({
+        title: 'Contraseña actualizada',
+        description: 'Usa la nueva contraseña en tu próximo inicio de sesión.',
+      });
+      return;
+    }
 
-  const handleDeleteProduct = (productId: string) => {
-    console.log('Deleting product:', productId);
-  };
-
-  const handleToggleAvailability = (productId: string, isAvailable: boolean) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === productId ? { ...p, isAvailable } : p))
-    );
-  };
-
-  const handleConfigClick = (configId: string) => {
-    console.log('Opening config:', configId);
+    toast({
+      variant: 'warning',
+      title: 'No se pudo cambiar la contraseña',
+      description: apiErrorMessage(resp, 'Verifica los datos e intenta de nuevo.'),
+    });
+    throw new Error('password-failed');
   };
 
   return (
-    <ProfileLayout
-      sidebar={<ProfileSidebar onLogout={handleLogout} />}
-      header={
-        <>
-          <h1 className="text-lg font-semibold">Perfil y Configuración</h1>
-          <div className="flex items-center gap-4">
-            {/* Search */}
-            <div className="relative hidden md:block">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
-              <Input
-                type="search"
-                placeholder="Buscar productos..."
-                className="h-9 w-56 pl-10 pr-3"
-              />
-            </div>
-
-            {/* Icons */}
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <HelpCircle className="h-5 w-5" />
-            </Button>
-
-            {/* User avatar */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-            >
-              <span className="text-sm">👤</span>
-            </Button>
-          </div>
-        </>
-      }
+    <ConfigLayout
+      sidebar={<ConfigSidebar />}
       main={
-        <div className="mx-auto max-w-5xl space-y-6">
-          {/* Profile card */}
-          <ProfileCard user={mockUser} onEdit={handleEditProfile} />
+        <div className="mx-auto max-w-4xl space-y-6">
+          {/* Encabezado al estilo del resto de las páginas */}
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Mi perfil</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Tus datos, tu sede y la seguridad de tu cuenta
+            </p>
+          </div>
 
-          {/* Product management */}
-          <ProductManagementCard
-            products={products}
-            currentPage={currentPage}
-            totalPages={2}
-            totalProducts={15}
-            onAddProduct={handleAddProduct}
-            onEditProduct={handleEditProduct}
-            onDeleteProduct={handleDeleteProduct}
-            onToggleAvailability={handleToggleAvailability}
-            onPageChange={setCurrentPage}
-          />
+          {loading && !profile && (
+            <div className="space-y-6">
+              <Skeleton className="h-40 w-full rounded-lg" />
+              <Skeleton className="h-64 w-full rounded-lg" />
+            </div>
+          )}
 
-          {/* Additional config */}
-          <AdditionalConfigCard onConfigClick={handleConfigClick} />
+          {!loading && !profile && (
+            <Card>
+              <CardContent className="flex flex-col items-center gap-4 py-10 text-center">
+                <AlertCircle className="h-10 w-10 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">No se pudieron cargar tus datos</p>
+                  <p className="text-sm text-muted-foreground">
+                    Revisa tu conexión e intenta de nuevo.
+                  </p>
+                </div>
+                <Button variant="outline" className="gap-2" onClick={() => void loadProfile()}>
+                  <RotateCcw className="h-4 w-4" />
+                  Reintentar
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {profile && (
+            <>
+              <ProfileCard profile={profile} onEdit={() => setEditOpen(true)} />
+              <ChangePasswordCard onSubmit={handleChangePassword} />
+
+              <ProfileFormDialog
+                open={editOpen}
+                onOpenChange={setEditOpen}
+                profile={profile}
+                onSubmit={handleSaveProfile}
+              />
+            </>
+          )}
         </div>
       }
     />

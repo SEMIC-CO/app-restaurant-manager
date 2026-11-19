@@ -202,6 +202,37 @@ export interface AuthUser {
   headquarterId: number | null;
 }
 
+/**
+ * Perfil propio (`GET`/`PUT /auth/profile`): los datos del usuario con los
+ * NOMBRES de perfil, empresa y sede resueltos (en el JWT solo viajan ids).
+ * A diferencia de `ApiUser` no exige el módulo Usuarios: siempre es el
+ * usuario leyendo lo suyo.
+ */
+export interface AuthProfile {
+  id: number;
+  name: string;
+  email: string;
+  telephone: string | null;
+  status: ApiUserStatus;
+  isOwner: boolean;
+  profile: { id: number; name: string; type: string } | null;
+  company: { id: number; name: string } | null;
+  headquarter: { id: number; name: string; address: string | null } | null;
+}
+
+/** Campos editables del propio perfil (`PUT /auth/profile`). */
+export interface UpdateProfilePayload {
+  name?: string;
+  email?: string;
+  telephone?: string | null;
+}
+
+/** Cambio de contraseña propio (`PUT /auth/password`). */
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export interface LoginPayload {
   email: string;
   password: string;
