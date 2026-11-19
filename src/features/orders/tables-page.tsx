@@ -48,7 +48,7 @@ export function TablesPage() {
         <div className="flex-shrink-0">
           <AppHeader />
         </div>
-        <div className="space-y-6 p-6 overflow-y-auto">
+        <div className="space-y-6 p-4 overflow-y-auto sm:p-6">
           {/* Header: Título + contadores rápidos */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
