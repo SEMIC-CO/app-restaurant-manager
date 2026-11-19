@@ -46,12 +46,16 @@ export {
 } from './inventory-labels';
 export { ConfigSidebar } from './config-sidebar';
 export { MobileSidebarDrawer } from './mobile-sidebar-drawer';
+export { FilterTabs } from './filter-tabs';
+export type { FilterTabItem } from './filter-tabs';
+export { SideDrawer } from './side-drawer';
 export { ProtectedRoute } from './protected-route';
 export { PublicRoute, ADMIN_HOME_ROUTE } from './public-route';
 export { SectionFormDialog } from './section-form-dialog';
 export { CategoryFormDialog } from './category-form-dialog';
 export type { CategoryFormData } from './category-form-dialog';
 export { TableFormDialog } from './table-form-dialog';
+export type { TableFormData } from './table-form-dialog';
 export { EmployeeFormDialog } from './employee-form-dialog';
 export type { EmployeeFormData } from './employee-form-dialog';
 export { PaymentEmployeeFormDialog } from './payment-employee-form-dialog';

@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils';
+import { FilterTabs, type FilterTabItem } from './filter-tabs';
 import type { Category } from '@/types';
 
 interface CategoryTabsProps {
@@ -8,39 +8,32 @@ interface CategoryTabsProps {
 }
 
 /**
- * Horizontal scrollable category tabs for filtering products.
- *
- * Estilo alineado con el item activo/inactivo del ConfigSidebar:
- * - Radio: rounded-lg (igual que el sidebar)
- * - Estado inactivo: text-muted-foreground + border (mejor percepción visual)
- * - Estado activo:   bg-primary text-primary-foreground
+ * Filtros de categorías (Mesas, productos del pedido, selector de mesas).
+ * Delega en `FilterTabs` para que use el estilo único de filtros de la app;
+ * aquí solo se mantienen el scroll horizontal y el ícono de la categoría.
  */
 export function CategoryTabs({
   categories,
   activeCategory,
-  onCategoryChange
+  onCategoryChange,
 }: CategoryTabsProps) {
+  const items: FilterTabItem[] = categories.map((category) => ({
+    id: category.id,
+    label: (
+      <>
+        {category.icon && <span>{category.icon}</span>}
+        {category.name}
+      </>
+    ),
+  }));
+
   return (
-    <div className="flex gap-2 overflow-x-auto pb-2">
-      {categories.map((category) => {
-        const isActive = activeCategory === category.id;
-        return (
-          <button
-            key={category.id}
-            type="button"
-            onClick={() => onCategoryChange(category.id)}
-            className={cn(
-              'inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-              isActive
-                ? 'bg-primary text-primary-foreground'
-                : 'border text-muted-foreground hover:bg-muted hover:text-foreground hover:border-muted-foreground/30'
-            )}
-          >
-            {category.icon && <span>{category.icon}</span>}
-            {category.name}
-          </button>
-        );
-      })}
-    </div>
+    <FilterTabs
+      items={items}
+      active={activeCategory}
+      onChange={onCategoryChange}
+      label="Filtrar por categoría"
+      className="flex-nowrap overflow-x-auto pb-2"
+    />
   );
 }
