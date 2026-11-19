@@ -1,5 +1,4 @@
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui';
+import { FilterTabs } from '@/components/common';
 import type { OrderStatus, OrderType } from '@/types';
 
 /**
@@ -21,35 +20,21 @@ interface TicketFiltersProps {
 }
 
 /**
- * Filter tabs for ticket queue (Todos, Para Llevar, Mesa, Delivery,
- * Listos / Entregados)
+ * Filtros de la cola de tickets (Todos, Para Llevar, Mesa, Delivery,
+ * Listos / Entregados) usados en Cocina y Entregas. Delega en
+ * `FilterTabs` (estilo único de filtros de la app).
  */
 export function TicketFilters({ filters, activeFilter, onFilterChange }: TicketFiltersProps) {
   return (
-    <div className="flex flex-wrap gap-2">
-      {filters.map((filter) => (
-        <Button
-          key={filter.type}
-          variant={activeFilter === filter.type ? 'default' : 'outline'}
-          onClick={() => onFilterChange(filter.type)}
-          className={cn(
-            'gap-2 rounded-full',
-            activeFilter === filter.type && 'bg-foreground text-background hover:bg-foreground/90'
-          )}
-        >
-          {filter.label}
-          {filter.count !== undefined && (
-            <span className={cn(
-              'rounded-full px-2 py-0.5 text-xs',
-              activeFilter === filter.type
-                ? 'bg-background text-foreground'
-                : 'bg-muted'
-            )}>
-              {filter.count}
-            </span>
-          )}
-        </Button>
-      ))}
-    </div>
+    <FilterTabs
+      items={filters.map((filter) => ({
+        id: filter.type,
+        label: filter.label,
+        count: filter.count,
+      }))}
+      active={activeFilter}
+      onChange={onFilterChange}
+      label="Filtrar tickets"
+    />
   );
 }

@@ -1,12 +1,11 @@
 import * as React from 'react';
 import { ConfigLayout } from '@/app/layout';
-import { ConfigSidebar } from '@/components/common';
+import { ConfigSidebar, FilterTabs } from '@/components/common';
 import {
   InventoryCategoriesPanel,
   InventoryItemsPanel,
   InventoryMovementsPanel,
 } from '@/components/inventory';
-import { cn } from '@/lib/utils';
 
 const TABS = [
   { id: 'items', label: 'Artículos' },
@@ -29,33 +28,23 @@ export function InventoryPage() {
       sidebar={<ConfigSidebar />}
       main={
         <div className="space-y-6">
-          <div className="border-b bg-background px-6 py-4 rounded-lg">
-            <div className="mb-4">
-              <h1 className="text-2xl font-bold">Inventario</h1>
-              <p className="text-muted-foreground">
-                Administra los artículos, sus categorías y los movimientos de
-                stock de tu sede
-              </p>
-            </div>
-
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    'inline-flex whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                    activeTab === tab.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'border text-muted-foreground hover:bg-muted hover:text-foreground hover:border-muted-foreground/30',
-                  )}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+          {/* Encabezado al estilo de Mesas/Pedidos: título + descripción */}
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Inventario</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Administra los artículos, sus categorías y los movimientos de
+              stock de tu sede
+            </p>
           </div>
+
+          {/* Filtros después del encabezado (igual que en Mesas/Pedidos) */}
+          <FilterTabs
+            label="Filtrar vista de inventario"
+            items={TABS.map((tab) => ({ id: tab.id, label: tab.label }))}
+            active={activeTab}
+            onChange={(id) => setActiveTab(id as TabId)}
+            className="flex-nowrap overflow-x-auto pb-1"
+          />
 
           {activeTab === 'items' && <InventoryItemsPanel />}
           {activeTab === 'categories' && <InventoryCategoriesPanel />}
