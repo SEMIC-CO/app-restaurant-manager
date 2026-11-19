@@ -146,10 +146,6 @@ export function DeliveryPage() {
     [query],
   );
 
-  const filteredReady = useMemo(
-    () => readyOrders.filter(matchesSearch),
-    [readyOrders, matchesSearch],
-  );
   const filteredDayOrders = useMemo(
     () =>
       dayOrders.filter(
@@ -204,8 +200,8 @@ export function DeliveryPage() {
           {/* Page header */}
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold">Control de Entregas</h1>
-              <p className="text-muted-foreground">
+              <h1 className="text-2xl font-semibold tracking-tight">Control de Entregas</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
                 Los pedidos que la cocina deja listos aparecen aquí al instante.
                 Márkalos como entregados y revisa el día completo.
               </p>
@@ -237,31 +233,9 @@ export function DeliveryPage() {
             </div>
           ) : (
             <>
-              {/* Listos para entrega (ready → delivered) */}
-              <DeliverySection
-                title="Listos para Entrega"
-                count={filteredReady.length}
-                indicatorColor="primary"
-              >
-                {filteredReady.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    {query
-                      ? 'Sin pedidos listos que coincidan con la búsqueda.'
-                      : 'La cocina aún no ha marcado pedidos como listos hoy.'}
-                  </p>
-                ) : (
-                  filteredReady.map((order) => (
-                    <DeliveryOrderCard
-                      key={order.id}
-                      order={order}
-                      busy={updatingId === order.id}
-                      onDeliver={handleDeliver}
-                    />
-                  ))
-                )}
-              </DeliverySection>
-
-              {/* Todos los pedidos del día, en tarjetas y con filtros */}
+              {/* Todos los pedidos del día, en tarjetas y con filtros.
+                  La sección "Listos para entrega" se quitó: para eso está
+                  el filtro de estado (Listos) dentro de estos filtros. */}
               <DeliverySection
                 title="Todos los pedidos de hoy"
                 count={filteredDayOrders.length}

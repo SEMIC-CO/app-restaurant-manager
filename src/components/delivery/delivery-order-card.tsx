@@ -33,12 +33,12 @@ export function DeliveryOrderCard({ order, busy = false, onDeliver }: DeliveryOr
 
   return (
     <Card
-      className={cn('p-4', isReady && 'border-emerald-500/40 bg-emerald-500/5')}
+      className={cn('p-3', isReady && 'border-emerald-500/40 bg-emerald-500/5')}
     >
       {/* Header: Order number + Status + Time */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-lg font-bold text-primary">
+          <span className="text-base font-bold text-primary">
             {formatOrderNumber(order.orderNumber)}
           </span>
           <Badge
@@ -56,17 +56,17 @@ export function DeliveryOrderCard({ order, busy = false, onDeliver }: DeliveryOr
 
       {/* Customer name */}
       {order.customerName && (
-        <p className="mt-2 font-medium">{order.customerName}</p>
+        <p className="mt-1.5 text-sm font-medium">{order.customerName}</p>
       )}
 
       {/* Order items summary */}
-      <div className="mt-3 space-y-1">
+      <div className="mt-2 space-y-1">
         {visibleItems.map((item) => (
-          <div key={item.id} className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">
+          <div key={item.id} className="flex items-center justify-between gap-2 text-sm">
+            <span className="min-w-0 truncate text-muted-foreground">
               {item.quantity}x {item.productName}
             </span>
-            <span>{formatCurrency(item.subtotal)}</span>
+            <span className="shrink-0 tabular-nums">{formatCurrency(item.subtotal)}</span>
           </div>
         ))}
         {hiddenItems > 0 && (
@@ -90,16 +90,16 @@ export function DeliveryOrderCard({ order, busy = false, onDeliver }: DeliveryOr
       </div>
 
       {/* Total */}
-      <div className="mt-3 flex items-center justify-between border-t pt-3">
+      <div className="mt-2 flex items-center justify-between border-t pt-2">
         <span className="text-sm text-muted-foreground">Total</span>
-        <span className="text-lg font-bold text-primary">
+        <span className="text-base font-bold text-primary tabular-nums">
           {formatCurrency(order.total)}
         </span>
       </div>
 
       {/* Actions: solo los pedidos listos se entregan desde la tarjeta */}
       {isReady && (
-        <div className="mt-4">
+        <div className="mt-3">
           <Button
             className="w-full gap-2"
             disabled={busy}
