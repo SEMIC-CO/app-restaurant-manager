@@ -157,6 +157,15 @@ export interface ListHeadquartersParams {
   search?: string;
 }
 
+/** Campos editables de una sede (`PUT /headquarters/:id`). Todo opcional. */
+export interface UpdateHeadquarterPayload {
+  name?: string;
+  address?: string;
+  countryId?: number;
+  departamentId?: number;
+  cityId?: number;
+}
+
 // Registro (API /auth/register)
 export interface RegisterPayload {
   name: string;
@@ -216,8 +225,21 @@ export interface AuthProfile {
   status: ApiUserStatus;
   isOwner: boolean;
   profile: { id: number; name: string; type: string } | null;
-  company: { id: number; name: string } | null;
-  headquarter: { id: number; name: string; address: string | null } | null;
+  company: Company | null;
+  headquarter: {
+    id: number;
+    name: string;
+    address: string | null;
+    countryId: number | null;
+    departamentId: number | null;
+    cityId: number | null;
+  } | null;
+}
+
+/** Empresa (`companys`) — API `/companies/mine`. */
+export interface Company {
+  id: number;
+  name: string;
 }
 
 /** Campos editables del propio perfil (`PUT /auth/profile`). */

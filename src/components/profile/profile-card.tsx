@@ -49,8 +49,8 @@ export function ProfileCard({ profile, onEdit }: ProfileCardProps) {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
-        <div className="flex items-center gap-4">
+      <CardHeader className="flex flex-wrap items-start justify-between gap-4 space-y-0">
+        <div className="flex min-w-0 items-center gap-4">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary text-xl font-semibold text-primary-foreground">
             {initials(profile.name)}
           </div>
@@ -72,7 +72,7 @@ export function ProfileCard({ profile, onEdit }: ProfileCardProps) {
           </div>
         </div>
 
-        <Button variant="outline" className="gap-2" onClick={onEdit}>
+        <Button variant="outline" className="shrink-0 gap-2" onClick={onEdit}>
           <Pencil className="h-4 w-4" />
           Editar perfil
         </Button>

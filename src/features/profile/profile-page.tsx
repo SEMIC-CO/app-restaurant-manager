@@ -6,11 +6,12 @@ import {
   ChangePasswordCard,
   ProfileCard,
   ProfileFormDialog,
+  type LocationFormData,
   type ProfileFormData,
 } from '@/components/profile';
 import { Button, Card, CardContent, Skeleton } from '@/components/ui';
 import { toast } from '@/hooks';
-import { authService } from '@/services';
+import { authService, companyService, headquarterService } from '@/services';
 import { useAuthStore } from '@/store';
 import type { ApiResponse, AuthProfile } from '@/types';
 
@@ -33,8 +34,9 @@ export function ProfilePage() {
   const [loading, setLoading] = React.useState(true);
   const [editOpen, setEditOpen] = React.useState(false);
 
-  const loadProfile = React.useCallback(async () => {
-    setLoading(true);
+  const loadProfile = React.useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    if (!silent) setLoading(true);
     try {
       const resp = await authService.getProfile();
       if (resp.code === 200 && resp.data) {
@@ -53,7 +55,7 @@ export function ProfilePage() {
         description: 'No se pudo conectar con el servidor.',
       });
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -73,35 +75,102 @@ export function ProfilePage() {
     }
   };
 
-  const handleSaveProfile = async (values: ProfileFormData): Promise<void> => {
-    let resp: ApiResponse<AuthProfile>;
+  /**
+   * Guarda en los tres endpoints que toca: datos personales
+   * (`/auth/profile`), nombre de empresa (`/companies/mine`) y sede con su
+   * ubicación (`/headquarters/:id`). Si alguno falla se cuenta el error y
+   * al final se recarga el perfil para que la tarjeta muestre la verdad
+   * del servidor.
+   */
+  const handleSaveProfile = async (
+    values: ProfileFormData,
+    location: LocationFormData | null,
+  ): Promise<void> => {
+    if (!profile) return;
+    const failures: string[] = [];
+
+    // 1) Datos personales
     try {
-      resp = await authService.updateProfile(values);
-    } catch {
-      toast({
-        variant: 'warning',
-        title: 'Sin conexión',
-        description: 'No se pudo contactar con el servidor.',
+      const resp = await authService.updateProfile({
+        name: values.name,
+        email: values.email,
+        telephone: values.telephone,
       });
-      throw new Error('network');
+      if (resp.code === 200 && resp.data) {
+        setProfile(resp.data);
+        syncSession(resp.data);
+      } else {
+        failures.push(apiErrorMessage(resp, 'tus datos personales'));
+      }
+    } catch {
+      failures.push('No se pudieron guardar tus datos (sin conexión)');
     }
 
-    if (resp.code === 200 && resp.data) {
-      setProfile(resp.data);
-      syncSession(resp.data);
+    // 2) Nombre de la empresa
+    const companyName = values.companyName.trim();
+    if (profile.company && companyName !== profile.company.name) {
+      try {
+        const resp = await companyService.updateMine({ name: companyName });
+        if (resp.code !== 200) {
+          failures.push(apiErrorMessage(resp, 'el nombre de la empresa'));
+        }
+      } catch {
+        failures.push('No se pudo guardar el nombre de la empresa');
+      }
+    }
+
+    // 3) Sede: nombre, dirección y ubicación
+    const headquarter = profile.headquarter;
+    const headquarterName = values.headquarterName.trim();
+    const address = values.address.trim();
+    const locationChanged =
+      location !== null &&
+      headquarter !== null &&
+      (location.countryId !== headquarter.countryId ||
+        location.departamentId !== headquarter.departamentId ||
+        location.cityId !== headquarter.cityId);
+    const headquarterChanged =
+      headquarter !== null &&
+      (headquarterName !== headquarter.name ||
+        address !== (headquarter.address ?? '') ||
+        locationChanged);
+
+    if (headquarter && headquarterChanged) {
+      try {
+        const resp = await headquarterService.update(headquarter.id, {
+          name: headquarterName,
+          address,
+          ...(locationChanged && location
+            ? {
+                countryId: location.countryId,
+                departamentId: location.departamentId,
+                cityId: location.cityId,
+              }
+            : {}),
+        });
+        if (resp.code !== 200) {
+          failures.push(apiErrorMessage(resp, 'los datos de la sede'));
+        }
+      } catch {
+        failures.push('No se pudieron guardar los datos de la sede');
+      }
+    }
+
+    await loadProfile({ silent: true });
+
+    if (failures.length > 0) {
       toast({
-        title: 'Perfil actualizado',
-        description: 'Tus datos se guardaron correctamente.',
+        variant: 'warning',
+        title: 'Algunos datos no se guardaron',
+        description: failures.join(' · '),
       });
-      return;
+      throw new Error('save-failed');
     }
 
     toast({
-      variant: 'warning',
-      title: 'No se pudo guardar',
-      description: apiErrorMessage(resp, 'Revisa los datos e intenta de nuevo.'),
+      title: 'Perfil actualizado',
+      description: 'Tus datos, tu empresa y tu sede se guardaron correctamente.',
     });
-    throw new Error('save-failed');
   };
 
   const handleChangePassword = async (payload: {

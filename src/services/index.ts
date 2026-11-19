@@ -1,5 +1,6 @@
 export { authService } from './auth-service';
 export { categoryService } from './category-service';
+export { companyService } from './company-service';
 export { headquarterService } from './headquarter-service';
 export { inventoryCategoryService } from './inventory-category-service';
 export { inventoryItemService } from './inventory-item-service';

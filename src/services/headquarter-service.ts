@@ -5,6 +5,7 @@ import type {
     Headquarters,
     ListHeadquartersParams,
     Paginated,
+    UpdateHeadquarterPayload,
 } from '@/types';
 
 /**
@@ -28,6 +29,21 @@ class HeadquarterService {
     async getById(id: number): Promise<ApiResponse<Headquarters>> {
         return apiFetch<ApiResponse<Headquarters>>(`headquarters/${id}`, {
             method: 'GET',
+        });
+    }
+
+    /**
+     * Actualiza una sede de la empresa del JWT (nombre, dirección y
+     * ubicación: país → departamento → ciudad). El backend responde `404`
+     * si el id pertenece a otra empresa.
+     */
+    async update(
+        id: number,
+        payload: UpdateHeadquarterPayload,
+    ): Promise<ApiResponse<Headquarters>> {
+        return apiFetch<ApiResponse<Headquarters>>(`headquarters/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
         });
     }
 
