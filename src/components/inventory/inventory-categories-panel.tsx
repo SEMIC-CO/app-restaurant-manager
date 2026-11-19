@@ -275,6 +275,9 @@ export function InventoryCategoriesPanel() {
                     Categoría
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Tipo
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Estado
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -285,13 +288,13 @@ export function InventoryCategoriesPanel() {
               <tbody className="divide-y">
                 {loading ? (
                   <tr>
-                    <td colSpan={3} className="px-6 py-12 text-center text-sm text-muted-foreground">
+                    <td colSpan={4} className="px-6 py-12 text-center text-sm text-muted-foreground">
                       Cargando categorías...
                     </td>
                   </tr>
                 ) : categories.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="px-6 py-12 text-center">
+                    <td colSpan={4} className="px-6 py-12 text-center">
                       <span className="text-4xl">🗂️</span>
                       <p className="mt-3 font-medium">
                         {hasFilters
@@ -314,6 +317,20 @@ export function InventoryCategoriesPanel() {
                           {category.description || `ID: ${category.id}`}
                         </span>
                       </td>
+                      {/* Alcance: SYSTEM = catálogo del sistema (solo lectura) */}
+                      <td className="px-6 py-4">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'text-[11px] uppercase',
+                            category.type === 'SYSTEM'
+                              ? 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400'
+                              : 'border-primary/40 bg-primary/10 text-primary',
+                          )}
+                        >
+                          {category.type}
+                        </Badge>
+                      </td>
                       <td className="px-6 py-4">
                         <Badge
                           variant={category.isActive ? 'secondary' : 'outline'}
@@ -328,38 +345,46 @@ export function InventoryCategoriesPanel() {
                         </Badge>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEditCategory(category)}
-                            className="h-8 w-8"
-                            title="Editar categoría"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          {category.isActive ? (
+                        {category.type === 'SYSTEM' ? (
+                          /* Las categorías del sistema no se editan ni se
+                             eliminan desde la aplicación. */
+                          <p className="text-center text-xs text-muted-foreground">
+                            Solo lectura
+                          </p>
+                        ) : (
+                          <div className="flex items-center justify-center gap-2">
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDeleteCategory(category)}
-                              className="h-8 w-8 hover:text-destructive"
-                              title="Eliminar categoría (desactiva)"
+                              onClick={() => handleEditCategory(category)}
+                              className="h-8 w-8"
+                              title="Editar categoría"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Pencil className="h-4 w-4" />
                             </Button>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleRestoreCategory(category)}
-                              className="h-8 w-8 hover:text-green-600"
-                              title="Restaurar categoría"
-                            >
-                              <RotateCcw className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
+                            {category.isActive ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteCategory(category)}
+                                className="h-8 w-8 hover:text-destructive"
+                                title="Eliminar categoría (desactiva)"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRestoreCategory(category)}
+                                className="h-8 w-8 hover:text-green-600"
+                                title="Restaurar categoría"
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))

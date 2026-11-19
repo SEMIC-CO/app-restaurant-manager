@@ -409,13 +409,21 @@ export interface ListProductsParams {
  */
 export type InventoryMovementType = 'ENTRY' | 'EXIT' | 'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT';
 
+/**
+ * Alcance de una categoría de inventario (`inventory_categories.type`):
+ * `SYSTEM` = catálogo del sistema (solo lectura) · `EMPRESA` = de la empresa.
+ */
+export type InventoryCategoryType = 'SYSTEM' | 'EMPRESA';
+
 /** Categoría de inventario — alcance empresa del JWT. */
 export interface ApiInventoryCategory {
   id: number;
   name: string;
   description: string | null;
   isActive: boolean;
-  companyId: number;
+  /** Anulable: las categorías SYSTEM no pertenecen a una empresa. */
+  companyId: number | null;
+  type: InventoryCategoryType;
 }
 
 export interface CreateInventoryCategoryPayload {
