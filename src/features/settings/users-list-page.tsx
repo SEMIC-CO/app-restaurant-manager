@@ -281,14 +281,19 @@ export function UsersListPage() {
 
           {/* Listado */}
           <Card>
-            <div className="flex flex-row items-center justify-between gap-3 border-b px-6 py-4">
+            {/*
+              En móvil los elementos se apilan (el ancho fijo del buscador
+              empujaba la cabecera fuera de la tarjeta); a partir de `sm` se
+              vuelven a poner en fila, como en Empleados y Categorías.
+            */}
+            <div className="flex flex-col gap-3 border-b px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm font-medium">Usuarios registrados</p>
-              <div className="relative">
+              <div className="relative w-full min-w-0 sm:w-[260px]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 <Input
                   type="search"
                   placeholder="Buscar por nombre o correo..."
-                  className="h-9 w-[260px] pl-9"
+                  className="h-9 w-full pl-9"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
                 />
