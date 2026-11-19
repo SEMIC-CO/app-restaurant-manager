@@ -1,21 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, Pencil } from "lucide-react";
+import { Download } from "lucide-react";
 import {
   AnalyticsStats,
   AnalyticsFilters,
   FlavorRankingChart,
   SalesMixChart,
   ProductTable,
+  FinancialReportSection,
 } from "@/components/analytics";
 import { Button, Input, Label } from "@/components/ui";
 import { ConfigLayout } from "@/app/layout";
 import { ConfigSidebar } from "@/components/common";
 import { toast } from "@/hooks";
 import { reportService } from "@/services";
-import { toISODate } from "@/utils";
+import { downloadCsv, formatRangeLabel, toISODate } from "@/utils";
 import type { ApiResponse, SalesReport } from "@/types";
 
 type PeriodId = "today" | "week" | "month" | "custom";
+
+/** Secciones de `/reportes`: cada una carga sus datos solo al entrar. */
+type ReportSectionId = "productos" | "financiero";
+
+const reportSections = [
+  { id: "productos", label: "Análisis de Productos" },
+  { id: "financiero", label: "Reporte Financiero" },
+];
 
 const timeFilters = [
   { id: "today", label: "Hoy" },
@@ -75,10 +84,16 @@ function apiErrorMessage(resp: ApiResponse<unknown>, fallback: string): string {
 }
 
 /**
- * Reportes: desempeño de productos con datos reales de `GET /reports/sales`
- * (pedidos del día/semana/mes o rango personalizado, sin cancelados).
+ * Reportes de la sede, en dos secciones:
+ *
+ * - **Análisis de Productos** (`GET /reports/sales`): desempeño del menú con
+ *   pedidos del día/semana/mes o rango personalizado (sin cancelados).
+ * - **Reporte Financiero** (`GET /reports/financial`): ingresos, egresos y
+ *   rentabilidad. Se monta **solo al entrar en su pestaña** (carga perezosa)
+ *   y se vuelve a consultar con "Actualizar" o al cambiar el período.
  */
 export function AnalyticsPage() {
+  const [activeSection, setActiveSection] = useState<ReportSectionId>("productos");
   const [activeFilter, setActiveFilter] = useState<PeriodId>("today");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -96,6 +111,8 @@ export function AnalyticsPage() {
     setCurrentPage(1);
   }, [activeFilter, dateFrom, dateTo]);
 
+  // El análisis de productos carga al entrar a la página (una sola vez por
+  // rango); la sección financiera carga por separado al montarse.
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -181,6 +198,54 @@ export function AnalyticsPage() {
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  /** Exporta el análisis completo (resumen, productos y mix) a CSV. */
+  const handleExport = () => {
+    if (!report) return;
+
+    const rows: Array<Array<string | number>> = [
+      ["Análisis de productos", formatRangeLabel(report.range)],
+      [],
+      ["Resumen"],
+      ["Pedidos (sin cancelados)", report.summary.totalOrders],
+      ["Unidades vendidas", report.summary.totalUnits],
+      [
+        "Producto más vendido",
+        report.summary.topProduct
+          ? `${report.summary.topProduct.name} (${report.summary.topProduct.units} u.)`
+          : "—",
+      ],
+      [
+        "Producto menos vendido",
+        report.summary.lowestProduct
+          ? `${report.summary.lowestProduct.name} (${report.summary.lowestProduct.units} u.)`
+          : "—",
+      ],
+      [],
+      ["Productos (de mayor a menor por unidades)"],
+      ["Producto", "Categoría", "Unidades", "Ingresos"],
+      ...report.products.map((product) => [
+        product.name,
+        product.categoryName ?? "Sin categoría",
+        product.units,
+        product.revenue,
+      ]),
+      [],
+      ["Mix de categorías"],
+      ["Categoría", "Unidades", "Porcentaje (%)"],
+      ...report.categoryMix.map((entry) => [
+        entry.name,
+        entry.units,
+        entry.percentage,
+      ]),
+    ];
+
+    downloadCsv("analisis-productos", ["Análisis de productos"], rows);
+    toast({
+      title: "📥 Reporte exportado",
+      description: "Archivo CSV descargado.",
+    });
+  };
+
   return (
     <ConfigLayout
       sidebar={<ConfigSidebar />}
@@ -189,113 +254,136 @@ export function AnalyticsPage() {
           {/* Page header */}
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-2xl font-bold">Análisis de Productos</h1>
-              <p className="text-muted-foreground">
-                Desempeño del menú e inventario en tiempo real
+              <h1 className="text-2xl font-semibold tracking-tight">Reportes</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {activeSection === "productos"
+                  ? "Desempeño del menú e inventario en tiempo real"
+                  : "Ingresos, egresos y rentabilidad de la sede"}
               </p>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" className="gap-2">
-                <Download className="h-4 w-4" />
-                Exportar
-              </Button>
-              <Button className="gap-2">
-                <Pencil className="h-4 w-4" />
-                Editar Menú
-              </Button>
-            </div>
-          </div>
-
-          {/* Time filters */}
-          <div className="space-y-3">
-            <AnalyticsFilters
-              filters={timeFilters}
-              activeFilter={activeFilter}
-              onFilterChange={(filterId) => setActiveFilter(filterId as PeriodId)}
-            />
-
-            {/* Personalizado: rango de fechas libre */}
-            {activeFilter === "custom" && (
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="space-y-1">
-                  <Label
-                    htmlFor="report-date-from"
-                    className="text-xs text-muted-foreground"
-                  >
-                    Desde
-                  </Label>
-                  <Input
-                    id="report-date-from"
-                    type="date"
-                    value={dateFrom}
-                    onChange={(event) => setDateFrom(event.target.value)}
-                    className="w-44"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label
-                    htmlFor="report-date-to"
-                    className="text-xs text-muted-foreground"
-                  >
-                    Hasta
-                  </Label>
-                  <Input
-                    id="report-date-to"
-                    type="date"
-                    value={dateTo}
-                    onChange={(event) => setDateTo(event.target.value)}
-                    className="w-44"
-                  />
-                </div>
+            {activeSection === "productos" && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={handleExport}
+                  disabled={!report}
+                >
+                  <Download className="h-4 w-4" />
+                  Exportar
+                </Button>
               </div>
             )}
           </div>
 
-          {loading && !report ? (
-            <p className="py-16 text-center text-sm text-muted-foreground">
-              Cargando reporte…
-            </p>
+          {/* Secciones de reportes: cada una carga sus datos solo al entrar */}
+          <AnalyticsFilters
+            filters={reportSections}
+            activeFilter={activeSection}
+            onFilterChange={(id) => setActiveSection(id as ReportSectionId)}
+          />
+
+          {activeSection === "financiero" ? (
+            <FinancialReportSection />
           ) : (
             <>
-              {/* Stats cards (datos reales del período) */}
-              <AnalyticsStats
-                totalOrders={summary?.totalOrders ?? 0}
-                totalUnits={summary?.totalUnits ?? 0}
-                topProduct={
-                  summary?.topProduct
-                    ? { name: summary.topProduct.name, units: summary.topProduct.units }
-                    : null
-                }
-                lowestProduct={
-                  summary?.lowestProduct
-                    ? {
-                        name: summary.lowestProduct.name,
-                        units: summary.lowestProduct.units,
-                      }
-                    : null
-                }
-              />
-
-              {/* Charts row */}
-              <div className="grid gap-6 lg:grid-cols-2">
-                <FlavorRankingChart
-                  flavors={ranking}
-                  onViewDetails={scrollToDetails}
+              {/* Time filters */}
+              <div className="space-y-3">
+                <AnalyticsFilters
+                  filters={timeFilters}
+                  activeFilter={activeFilter}
+                  onFilterChange={(filterId) =>
+                    setActiveFilter(filterId as PeriodId)
+                  }
                 />
-                <SalesMixChart categories={mix} />
+
+                {/* Personalizado: rango de fechas libre */}
+                {activeFilter === "custom" && (
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="report-date-from"
+                        className="text-xs text-muted-foreground"
+                      >
+                        Desde
+                      </Label>
+                      <Input
+                        id="report-date-from"
+                        type="date"
+                        value={dateFrom}
+                        onChange={(event) => setDateFrom(event.target.value)}
+                        className="w-44"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="report-date-to"
+                        className="text-xs text-muted-foreground"
+                      >
+                        Hasta
+                      </Label>
+                      <Input
+                        id="report-date-to"
+                        type="date"
+                        value={dateTo}
+                        onChange={(event) => setDateTo(event.target.value)}
+                        className="w-44"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Products table */}
-              <div id="detalle-productos">
-                <ProductTable
-                  products={pageRows}
-                  totalItems={tableRows.length}
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={setCurrentPage}
-                  onAction={(id) => console.log("Action on product:", id)}
-                />
-              </div>
+              {loading && !report ? (
+                <p className="py-16 text-center text-sm text-muted-foreground">
+                  Cargando reporte…
+                </p>
+              ) : (
+                <>
+                  {/* Stats cards (datos reales del período) */}
+                  <AnalyticsStats
+                    totalOrders={summary?.totalOrders ?? 0}
+                    totalUnits={summary?.totalUnits ?? 0}
+                    topProduct={
+                      summary?.topProduct
+                        ? {
+                            name: summary.topProduct.name,
+                            units: summary.topProduct.units,
+                          }
+                        : null
+                    }
+                    lowestProduct={
+                      summary?.lowestProduct
+                        ? {
+                            name: summary.lowestProduct.name,
+                            units: summary.lowestProduct.units,
+                          }
+                        : null
+                    }
+                  />
+
+                  {/* Charts row */}
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <FlavorRankingChart
+                      flavors={ranking}
+                      onViewDetails={scrollToDetails}
+                    />
+                    <SalesMixChart categories={mix} />
+                  </div>
+
+                  {/* Products table */}
+                  <div id="detalle-productos">
+                    <ProductTable
+                      products={pageRows}
+                      totalItems={tableRows.length}
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={setCurrentPage}
+                      onAction={(id) => console.log("Action on product:", id)}
+                    />
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>

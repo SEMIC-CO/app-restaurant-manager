@@ -794,6 +794,46 @@ export interface DashboardReport {
   recentOrders: RecentOrder[];
 }
 
+// ─── Reporte financiero (GET /reports/financial) ─────────────────────────────
+
+/** Ingresos de un método de pago en el período (facturas cobradas). */
+export interface FinancialIncomeByMethod {
+  /** `Cash` | `Card` | `Transfer` | `Sin definir`. */
+  method: string;
+  invoices: number;
+  total: number;
+  /** Propinas cobradas con ese método (fuera de `total`; son del mesero). */
+  tips: number;
+}
+
+/** Reporte financiero de la sede en un rango de fechas. */
+export interface FinancialReport {
+  range: {
+    dateFrom: string | null;
+    dateTo: string | null;
+  };
+  income: {
+    /** Σ `invoices.total` (facturas cobradas: `pending` + `emitted`). */
+    total: number;
+    /** Σ `invoices.voluntary_tip` (no entra en `total`). */
+    tips: number;
+    byMethod: FinancialIncomeByMethod[];
+  };
+  /** Egresos: nómina pagada + compras de insumos + gastos operativos. */
+  expenses: {
+    payroll: number;
+    purchases: number;
+    operating: number;
+    total: number;
+  };
+  profit: {
+    /** Ingresos − Egresos. */
+    net: number;
+    /** Margen neto (0–100) sobre los ingresos; `0` sin ingresos. */
+    marginPct: number;
+  };
+}
+
 // Empleados (API /employees) — alcance sede del JWT
 /** Empleado del backend (`employees`). */
 export interface ApiEmployee {

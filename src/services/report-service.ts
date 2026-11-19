@@ -1,6 +1,6 @@
 import { apiFetch } from './useFetch';
 import { buildQuery } from './query-utils';
-import type { ApiResponse, DashboardReport, SalesReport } from '@/types';
+import type { ApiResponse, DashboardReport, FinancialReport, SalesReport } from '@/types';
 
 interface SalesReportParams {
   /** Fecha inicial `AAAA-MM-DD` (inclusive). */
@@ -19,6 +19,23 @@ class ReportService {
   ): Promise<ApiResponse<SalesReport>> {
     return apiFetch<ApiResponse<SalesReport>>(
       `reports/sales${buildQuery({
+        dateFrom: params.dateFrom,
+        dateTo: params.dateTo,
+      })}`,
+      { method: 'GET' },
+    );
+  }
+
+  /**
+   * Reporte financiero del rango: ingresos (facturas cobradas: `pending` +
+   * `emitted`, por método de pago), egresos (nómina + compras + gastos
+   * operativos) y ganancia neta.
+   */
+  async getFinancialReport(
+    params: SalesReportParams = {},
+  ): Promise<ApiResponse<FinancialReport>> {
+    return apiFetch<ApiResponse<FinancialReport>>(
+      `reports/financial${buildQuery({
         dateFrom: params.dateFrom,
         dateTo: params.dateTo,
       })}`,
