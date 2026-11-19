@@ -1,16 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ClipboardList } from 'lucide-react';
 import { POSLayout } from '@/app/layout';
 import {
   AppHeader,
   CategoryTabs,
   ConfigSidebar,
   SearchInput,
+  SideDrawer,
 } from '@/components/common';
 import { Button } from '@/components/ui';
-import { OrderCreateSidebar, ProductGrid } from '@/components/pos';
-import { toast, useCategories, useFloorTables, useProducts } from '@/hooks';
+import { CartFab, OrderCreateSidebar, ProductGrid } from '@/components/pos';
+import {
+  toast,
+  useCategories,
+  useFloorTables,
+  useMediaQuery,
+  useProducts,
+} from '@/hooks';
 import { orderService, productService } from '@/services';
 import { useOrdersStore } from '@/store';
 import { mapApiOrder, orderTypeFromApi, resolveStorageUrl } from '@/utils';
@@ -67,6 +74,17 @@ export function OrderCreatePage() {
   // Modo edición: pedido original del backend
   const [editingApi, setEditingApi] = useState<ApiOrder | null>(null);
   const [loadingOrder, setLoadingOrder] = useState(isEditing);
+
+  // En pantallas < lg el panel lateral no existe (POSLayout lo oculta con
+  // `hidden lg:block`): el carrito/formulario se abre como drawer desde el FAB.
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+  const [cartOpen, setCartOpen] = useState(false);
+
+  // Si la ventana crece a escritorio, el drawer deja de tener sentido
+  // (vuelve el panel fijo): se cierra para no dejarlo abierto por detrás.
+  useEffect(() => {
+    if (isDesktop && cartOpen) setCartOpen(false);
+  }, [isDesktop, cartOpen]);
 
   // La mesa llega desde /mesas (TablesPage navega con state.mesa)
   useEffect(() => {
@@ -221,6 +239,20 @@ export function OrderCreatePage() {
           subtotal: product.price,
         },
       ];
+    });
+
+    // Feedback visible: el producto entró al pedido (el badge del FAB del
+    // carrito incrementa solo, con su animación de "pop"). El toast usa la
+    // duración por defecto (2 s): se muestra y se oculta enseguida para no
+    // tapar la carta.
+    const unitsInCart =
+      items.reduce((sum, item) => sum + item.quantity, 0) + 1;
+    toast({
+      variant: 'success',
+      title: '✅ Producto agregado al pedido',
+      description: `“${product.name}” se agregó al pedido · ${unitsInCart} ${
+        unitsInCart === 1 ? 'producto' : 'productos'
+      } en el carrito.`,
     });
   };
 
@@ -401,6 +433,44 @@ export function OrderCreatePage() {
     }
   };
 
+  // Panel lateral del pedido: el MISMO nodo se usa en el panel fijo de
+  // escritorio (POSLayout) y dentro del drawer en pantallas chicas. Todo su
+  // estado lo controla esta página, así que no hay conflictos al duplicarlo.
+  const orderSidebar = (
+    <OrderCreateSidebar
+      title={isEditing ? 'Editar Pedido' : undefined}
+      // En el drawer el título lo pone la cabecera del drawer; en el panel
+      // fijo de escritorio el título sigue siendo el de este componente.
+      hideHeader={!isDesktop}
+      submitLabel={isEditing ? 'Guardar Cambios' : undefined}
+      onCancelOrder={isEditing ? handleCancelOrder : undefined}
+      cancelling={creating}
+      orderType={orderType}
+      onOrderTypeChange={setOrderType}
+      customerName={customerName}
+      onCustomerNameChange={setCustomerName}
+      address={address}
+      onAddressChange={setAddress}
+      customerPhone={customerPhone}
+      onCustomerPhoneChange={setCustomerPhone}
+      notes={notes}
+      onNotesChange={setNotes}
+      selectedTableId={selectedTableId}
+      onTableChange={setSelectedTableId}
+      tables={tables}
+      sections={sections}
+      tablesLoading={tablesLoading}
+      items={items}
+      onUpdateQuantity={handleUpdateQuantity}
+      onRemoveItem={handleRemoveItem}
+      onSubmit={handleCreateOrder}
+      submitting={creating}
+    />
+  );
+
+  // Unidades del carrito: lo que muestra el badge del FAB
+  const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-muted/30 relative">
       <aside className="hidden w-[220px] flex-shrink-0 border-r bg-card lg:block h-full overflow-y-auto">
@@ -415,7 +485,7 @@ export function OrderCreatePage() {
         <POSLayout
           wide
           main={
-            <div className="space-y-6">
+            <div className="space-y-6 pb-24 lg:pb-0">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   <Button
@@ -428,10 +498,10 @@ export function OrderCreatePage() {
                     Volver a pedidos
                   </Button>
                   <div>
-                    <h1 className="text-xl font-semibold tracking-tight">
+                    <h1 className="text-2xl font-semibold tracking-tight">
                       {isEditing ? 'Editar Pedido' : 'Nuevo Pedido'}
                     </h1>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       {isEditing
                         ? 'Actualiza la información, los productos o las notas'
                         : 'Selecciona los productos de la carta'}
@@ -461,35 +531,30 @@ export function OrderCreatePage() {
               />
             </div>
           }
-          sidebar={
-            <OrderCreateSidebar
-              title={isEditing ? 'Editar Pedido' : undefined}
-              submitLabel={isEditing ? 'Guardar Cambios' : undefined}
-              onCancelOrder={isEditing ? handleCancelOrder : undefined}
-              cancelling={creating}
-              orderType={orderType}
-              onOrderTypeChange={setOrderType}
-              customerName={customerName}
-              onCustomerNameChange={setCustomerName}
-              address={address}
-              onAddressChange={setAddress}
-              customerPhone={customerPhone}
-              onCustomerPhoneChange={setCustomerPhone}
-              notes={notes}
-              onNotesChange={setNotes}
-              selectedTableId={selectedTableId}
-              onTableChange={setSelectedTableId}
-              tables={tables}
-              sections={sections}
-              tablesLoading={tablesLoading}
-              items={items}
-              onUpdateQuantity={handleUpdateQuantity}
-              onRemoveItem={handleRemoveItem}
-              onSubmit={handleCreateOrder}
-              submitting={creating}
-            />
-          }
+          sidebar={isDesktop ? orderSidebar : null}
         />
+
+        {/* FAB del carrito (solo < lg): abre el formulario/pedido en drawer.
+            Ícono de LISTADO (igual que la cabecera del drawer): lo que abre
+            es la lista de productos agregados. */}
+        <CartFab
+          count={cartCount}
+          onClick={() => setCartOpen(true)}
+          label="Ver pedido"
+          icon={<ClipboardList className="h-6 w-6" strokeWidth={2.25} />}
+        />
+
+        {/* Drawer derecho con el mismo panel del pedido (móvil/tablet).
+            Su cabecera lleva el ícono de listado + el título + ✕; el panel
+            interno no repite el título (hideHeader). */}
+        <SideDrawer
+          open={cartOpen}
+          onOpenChange={setCartOpen}
+          title={isEditing ? 'Editar Pedido' : 'Nuevo Pedido'}
+          icon={<ClipboardList className="h-4 w-4 text-primary" />}
+        >
+          {!isDesktop && orderSidebar}
+        </SideDrawer>
       </div>
     </div>
   );

@@ -1,18 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { ClipboardList, Plus } from 'lucide-react';
 import { POSLayout } from '@/app/layout';
-import { AppHeader, ConfigSidebar, SearchInput } from '@/components/common';
+import { AppHeader, ConfigSidebar, FilterTabs, SearchInput, SideDrawer } from '@/components/common';
 import { Button } from '@/components/ui';
 import {
   OrderCard,
   OrderDetailPanel,
 } from '@/components/pos';
-import { toast } from '@/hooks';
+import { toast, useMediaQuery } from '@/hooks';
 import { orderService, productService } from '@/services';
 import { useOrdersStore } from '@/store';
 import { mapApiOrder, toISODate } from '@/utils';
-import { cn } from '@/lib/utils';
 import type { Order, OrderType, ApiResponse } from '@/types';
 
 type TypeFilter = 'todas' | OrderType;
@@ -51,6 +50,11 @@ export function OrdersPage() {
   const setOrders = useOrdersStore((state) => state.setOrders);
   const updateOrderStatus = useOrdersStore((state) => state.updateOrderStatus);
 
+  // En pantallas < lg el panel derecho de detalle no existe (POSLayout lo
+  // oculta con `hidden lg:block`): el detalle se abre como drawer al tocar
+  // una tarjeta de pedido.
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('todas');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -59,6 +63,19 @@ export function OrdersPage() {
   const [selectedId, setSelectedId] = useState<string | null>(
     () => (location.state as { selectedOrderId?: string } | null)?.selectedOrderId ?? null,
   );
+  // Drawer del detalle (solo móvil/tablet): abierto si se llegó con un pedido
+  // recién creado seleccionado.
+  const [detailOpen, setDetailOpen] = useState(
+    () =>
+      !isDesktop &&
+      Boolean((location.state as { selectedOrderId?: string } | null)?.selectedOrderId),
+  );
+
+  // Si la ventana crece a escritorio vuelve el panel fijo: se cierra el
+  // drawer para no dejarlo abierto por detrás.
+  useEffect(() => {
+    if (isDesktop && detailOpen) setDetailOpen(false);
+  }, [isDesktop, detailOpen]);
 
   // La store vive solo en memoria: al montar (crear/recargar) se consulta la
   // lista real del backend y se reemplaza el contenido de la store.
@@ -176,6 +193,39 @@ export function OrdersPage() {
     }
   };
 
+  // Clic en una tarjeta: en escritorio selecciona (el panel fijo ya se ve);
+  // en móvil/tablet además abre el drawer con el detalle cargado.
+  const handleSelectOrder = (order: Order) => {
+    setSelectedId(order.id);
+    if (!isDesktop) setDetailOpen(true);
+  };
+
+  /** Cierra el detalle (✕ del panel o del drawer) y limpia la selección. */
+  const handleCloseDetail = () => {
+    setSelectedId(null);
+    setDetailOpen(false);
+  };
+
+  // El MISMO detalle se usa en el panel fijo de escritorio y en el drawer
+  // móvil: todo su estado lo maneja esta página.
+  const detailPanel = selectedOrder ? (
+    <OrderDetailPanel
+      order={selectedOrder}
+      onClose={handleCloseDetail}
+      onEdit={
+        !isFinalOrder(selectedOrder)
+          ? () => navigate(`/pedidos/${selectedOrder.id}/editar`)
+          : undefined
+      }
+      onCancel={
+        !isFinalOrder(selectedOrder)
+          ? () => handleCancelOrder(selectedOrder)
+          : undefined
+      }
+      cancelling={cancellingId === selectedOrder.id}
+    />
+  ) : null;
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-muted/30 relative">
       <aside className="hidden w-[220px] flex-shrink-0 border-r bg-card lg:block h-full overflow-y-auto">
@@ -192,11 +242,23 @@ export function OrdersPage() {
           main={
             <div className="space-y-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h1 className="text-2xl font-semibold tracking-tight">Pedidos</h1>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Selecciona un pedido para ver su detalle
-                  </p>
+                <div className="flex items-start justify-between gap-3 sm:justify-start">
+                  <div>
+                    <h1 className="text-2xl font-semibold tracking-tight">Pedidos</h1>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Selecciona un pedido para ver su detalle
+                    </p>
+                  </div>
+                  {/* Móvil/tablet: el panel derecho (con "Crear pedido") está
+                      oculto en lg-, así que el alta se ofrece aquí. */}
+                  <Button
+                    size="sm"
+                    className="h-9 shrink-0 gap-1.5 lg:hidden"
+                    onClick={() => navigate('/pedidos/nuevo')}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Nuevo pedido
+                  </Button>
                 </div>
                 <div className="w-full sm:w-72 flex-shrink-0">
                   <SearchInput
@@ -207,34 +269,17 @@ export function OrdersPage() {
                 </div>
               </div>
 
-              {/* Filtro por tags de tipo de orden */}
-              <div className="flex flex-wrap gap-2">
-                {TYPE_TAGS.map((tag) => (
-                  <button
-                    key={tag.id}
-                    type="button"
-                    onClick={() => setTypeFilter(tag.id)}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
-                      typeFilter === tag.id
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:border-muted-foreground/30 hover:bg-muted hover:text-foreground',
-                    )}
-                  >
-                    {tag.label}
-                    <span
-                      className={cn(
-                        'rounded-full px-1.5 text-xs',
-                        typeFilter === tag.id
-                          ? 'bg-primary-foreground/20'
-                          : 'bg-muted text-muted-foreground',
-                      )}
-                    >
-                      {counts[tag.id]}
-                    </span>
-                  </button>
-                ))}
-              </div>
+              {/* Filtro por tags de tipo de orden (estilo único de filtros) */}
+              <FilterTabs
+                label="Filtrar por tipo de pedido"
+                items={TYPE_TAGS.map((tag) => ({
+                  id: tag.id,
+                  label: tag.label,
+                  count: counts[tag.id],
+                }))}
+                active={typeFilter}
+                onChange={(id) => setTypeFilter(id as TypeFilter)}
+              />
 
               {/* Tarjetas de pedidos */}
               {filteredOrders.length === 0 ? (
@@ -262,7 +307,7 @@ export function OrdersPage() {
                       key={order.id}
                       order={order}
                       selected={order.id === selectedId}
-                      onSelect={() => setSelectedId(order.id)}
+                      onSelect={() => handleSelectOrder(order)}
                     />
                   ))}
                 </div>
@@ -270,48 +315,47 @@ export function OrdersPage() {
             </div>
           }
           sidebar={
-            <div className="flex h-full min-h-0 flex-col">
-              {/* Botón para abrir la pantalla de creación */}
-              <div className="shrink-0 border-b p-4">
-                <Button className="w-full gap-2" size="lg" onClick={() => navigate('/pedidos/nuevo')}>
-                  <Plus className="h-4 w-4" />
-                  Crear pedido
-                </Button>
-              </div>
+            isDesktop ? (
+              <div className="flex h-full min-h-0 flex-col">
+                {/* Botón para abrir la pantalla de creación */}
+                <div className="shrink-0 border-b p-4">
+                  <Button className="w-full gap-2" size="lg" onClick={() => navigate('/pedidos/nuevo')}>
+                    <Plus className="h-4 w-4" />
+                    Crear pedido
+                  </Button>
+                </div>
 
-              {/* Detalle del pedido seleccionado */}
-              {selectedOrder ? (
-                <div className="min-h-0 flex-1">
-                  <OrderDetailPanel
-                    order={selectedOrder}
-                    onClose={() => setSelectedId(null)}
-                    onEdit={
-                      !isFinalOrder(selectedOrder)
-                        ? () => navigate(`/pedidos/${selectedOrder.id}/editar`)
-                        : undefined
-                    }
-                    onCancel={
-                      !isFinalOrder(selectedOrder)
-                        ? () => handleCancelOrder(selectedOrder)
-                        : undefined
-                    }
-                    cancelling={cancellingId === selectedOrder.id}
-                  />
-                </div>
-              ) : (
-                <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 text-center">
-                  <span className="text-4xl">🧾</span>
-                  <p className="mt-3 text-sm font-medium text-muted-foreground">
-                    Detalle del pedido
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Haz click en un pedido de la lista para ver su información aquí.
-                  </p>
-                </div>
-              )}
-            </div>
+                {/* Detalle del pedido seleccionado */}
+                {selectedOrder ? (
+                  <div className="min-h-0 flex-1">{detailPanel}</div>
+                ) : (
+                  <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 text-center">
+                    <span className="text-4xl">🧾</span>
+                    <p className="mt-3 text-sm font-medium text-muted-foreground">
+                      Detalle del pedido
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Haz click en un pedido de la lista para ver su información aquí.
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : null
           }
         />
+
+        {/* Drawer con el detalle del pedido (solo < lg): se abre al tocar
+            una tarjeta. La cabecera es solo ícono + ✕ porque el título
+            "Detalle del pedido" lo trae el propio panel. */}
+        <SideDrawer
+          open={detailOpen}
+          onOpenChange={setDetailOpen}
+          title="Detalle del pedido"
+          showTitle={false}
+          icon={<ClipboardList className="h-4 w-4 text-primary" />}
+        >
+          {!isDesktop && detailPanel}
+        </SideDrawer>
       </div>
     </div>
   );

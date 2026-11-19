@@ -6,6 +6,7 @@ export { useSessionBootstrap } from './use-session-bootstrap';
 export { useNavigationBootstrap } from './use-navigation-bootstrap';
 export { useOrderEvents } from './use-order-events';
 export { useDashboard } from './use-dashboard';
+export { useMediaQuery } from './use-media-query';
 export {
   useImageUpload,
   compressImage,

@@ -91,3 +91,24 @@ body {
 html {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
+
+/* ── Badge del FAB del carrito (Pedidos / Caja) ───────────────────────────
+   El badge se re-monta con `key={count}` cada vez que cambia la cantidad,
+   de modo que esta animación se reproduzca como un pequeño "pop". */
+@keyframes badge-pop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.4;
+  }
+  60% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.badge-pop {
+  animation: badge-pop 0.35s ease-out;
+}

@@ -17,4 +17,5 @@ export {
   ORDER_STATUS_BADGE_CLASSES,
 } from './order-labels';
 export { SaleSummarySidebar } from './sale-summary-sidebar';
+export { CartFab } from './cart-fab';
 export { CheckoutInvoiceCard } from './checkout-invoice-card';

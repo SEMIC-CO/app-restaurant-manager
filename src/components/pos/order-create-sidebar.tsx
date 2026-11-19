@@ -22,6 +22,11 @@ import type { FloorTable, OrderItem, OrderType, Section } from '@/types';
 interface OrderCreateSidebarProps {
   /** Título del panel ("Nuevo Pedido" / "Editar Pedido"). */
   title?: string;
+  /**
+   * Oculta la cabecera interna con el título: se usa en el drawer móvil,
+   * donde ese título ya lo muestra la cabecera del propio drawer.
+   */
+  hideHeader?: boolean;
   /** Texto del botón principal ("Crear Pedido" / "Guardar Cambios"). */
   submitLabel?: string;
   /** Muestra el botón "Cancelar pedido" (solo en modo edición). */
@@ -65,6 +70,7 @@ interface OrderCreateSidebarProps {
  */
 export function OrderCreateSidebar({
   title,
+  hideHeader = false,
   submitLabel,
   onCancelOrder,
   cancelling = false,
@@ -113,85 +119,92 @@ export function OrderCreateSidebar({
     <div className="flex h-full flex-col">
       {/* Datos del pedido */}
       <div className="shrink-0 space-y-3 border-b px-4 py-3">
-        <div className="flex items-center gap-2">
-          <ClipboardList className="h-4 w-4 text-primary" />
-          <h2 className="text-lg font-bold">{title ?? 'Nuevo Pedido'}</h2>
-        </div>
-
-        {/* Tipo de pedido (PRIMERO) */}
-        <div className="space-y-1.5">
-          <Label htmlFor="order-type">Tipo de pedido</Label>
-          <Select value={orderType} onValueChange={handleOrderTypeChange}>
-            <SelectTrigger id="order-type" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ORDER_TYPE_OPTIONS.map((type) => (
-                <SelectItem key={type} value={type}>
-                  {ORDER_TYPE_LABELS[type]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Mesa (DESPUÉS): tag con popup de mesas libres; solo con tipo "Mesa" */}
-        <div className="space-y-1.5">
-          <Label className="flex items-center gap-1.5">
-            <BedDouble className="h-3.5 w-3.5" />
-            Mesa
-            {tableRequired && <span className="text-destructive">*</span>}
-          </Label>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setTablePickerOpen(true)}
-              disabled={!tableRequired}
-              className={cn(
-                'flex min-w-0 flex-1 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
-                selectedTable
-                  ? 'border-primary bg-primary/5 text-primary hover:bg-primary/10'
-                  : 'border-dashed text-muted-foreground hover:border-primary/40 hover:text-foreground',
-                !tableRequired &&
-                  'cursor-not-allowed opacity-50 hover:border-dashed hover:text-muted-foreground',
-              )}
-            >
-              <BedDouble className="h-4 w-4 shrink-0" />
-              <span className="min-w-0 truncate">
-                {selectedTable
-                  ? `${selectedTable.name} · ${selectedTable.sectionName}`
-                  : 'Seleccionar mesa libre'}
-              </span>
-              {tableRequired && (
-                <span className="ml-auto shrink-0 text-xs underline-offset-2 hover:underline">
-                  {selectedTable ? 'Cambiar' : 'Elegir'}
-                </span>
-              )}
-            </button>
-            {selectedTable && tableRequired && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0"
-                aria-label="Quitar mesa"
-                onClick={() => onTableChange(null)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
+        {/* Cabecera con el título. Se oculta en el drawer móvil, donde el
+            título ya vive en la cabecera del drawer. */}
+        {!hideHeader && (
+          <div className="flex items-center gap-2">
+            <ClipboardList className="h-4 w-4 text-primary" />
+            <h2 className="text-lg font-bold">{title ?? 'Nuevo Pedido'}</h2>
           </div>
-          {!tableRequired && (
-            <p className="text-xs text-muted-foreground">
-              Disponible solo para pedidos de tipo Mesa.
-            </p>
-          )}
-          {tableRequired && tables.length === 0 && !tablesLoading && (
-            <p className="text-xs text-muted-foreground">
-              No hay mesas registradas en la sede.
-            </p>
-          )}
+        )}
+
+        {/* Tipo de pedido + Mesa en UNA sola línea (gana alto para la
+            lista de productos agregados); la columna de Mesa es más ancha
+            para que el nombre de la mesa elegida se vea completo. */}
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] gap-3">
+          {/* Tipo de pedido */}
+          <div className="min-w-0 space-y-1.5">
+            <Label htmlFor="order-type">Tipo de pedido</Label>
+            <Select value={orderType} onValueChange={handleOrderTypeChange}>
+              <SelectTrigger id="order-type" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ORDER_TYPE_OPTIONS.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {ORDER_TYPE_LABELS[type]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Mesa: tag con popup de mesas libres; solo con tipo "Mesa" */}
+          <div className="min-w-0 space-y-1.5">
+            <Label className="flex items-center gap-1.5">
+              <BedDouble className="h-3.5 w-3.5" />
+              Mesa
+              {tableRequired && <span className="text-destructive">*</span>}
+            </Label>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setTablePickerOpen(true)}
+                disabled={!tableRequired}
+                className={cn(
+                  'flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border px-2 py-2 text-sm font-medium transition-colors',
+                  selectedTable
+                    ? 'border-primary bg-primary/5 text-primary hover:bg-primary/10'
+                    : 'border-dashed text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                  !tableRequired &&
+                    'cursor-not-allowed opacity-50 hover:border-dashed hover:text-muted-foreground',
+                )}
+              >
+                <BedDouble className="h-4 w-4 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">
+                  {selectedTable
+                    ? `${selectedTable.name} · ${selectedTable.sectionName}`
+                    : 'Seleccionar mesa libre'}
+                </span>
+              </button>
+              {selectedTable && tableRequired && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0"
+                  aria-label="Quitar mesa"
+                  onClick={() => onTableChange(null)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
+
+        {/* Ayudas del campo mesa a ancho completo: dentro de la columna
+            angosta se partirían en 2-3 líneas y comerían espacio. */}
+        {!tableRequired && (
+          <p className="text-xs text-muted-foreground">
+            Disponible solo para pedidos de tipo Mesa.
+          </p>
+        )}
+        {tableRequired && tables.length === 0 && !tablesLoading && (
+          <p className="text-xs text-muted-foreground">
+            No hay mesas registradas en la sede.
+          </p>
+        )}
 
         {/* Cliente (opcional) */}
         <div className="space-y-1.5">

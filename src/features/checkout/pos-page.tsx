@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Calculator } from "lucide-react";
 import { POSLayout } from "@/app/layout";
-import { ConfigSidebar, AppHeader } from "@/components/common";
+import { ConfigSidebar, AppHeader, SideDrawer } from "@/components/common";
 import {
+  CartFab,
   CashierFilters,
   ChargeDialog,
   OrderCard,
@@ -9,7 +11,7 @@ import {
   TablesGrid,
   type CashierView,
 } from "@/components/pos";
-import { toast, useFloorTables, useOrderEvents } from "@/hooks";
+import { toast, useFloorTables, useMediaQuery, useOrderEvents } from "@/hooks";
 import { orderService, productService } from "@/services";
 import { useCartStore } from "@/store";
 import { formatOrderNumber, mapApiOrder } from "@/utils";
@@ -50,6 +52,15 @@ export function POSPage() {
   const [selectedTable, setSelectedTable] = useState<FloorTable | null>(null);
   /** Formulario de cobro (Cobrar → datos del cliente, efectivo y factura). */
   const [chargeOpen, setChargeOpen] = useState(false);
+  /** En pantallas < lg el ticket se abre como drawer desde el FAB. */
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const [ticketOpen, setTicketOpen] = useState(false);
+
+  // Si la ventana crece a escritorio vuelve el panel fijo: se cierra el
+  // drawer para no dejarlo abierto por detrás del panel.
+  useEffect(() => {
+    if (isDesktop && ticketOpen) setTicketOpen(false);
+  }, [isDesktop, ticketOpen]);
 
   // Sin polling: la Caja se refresca con el socket (abajo), que recarga
   // tanto los pedidos como la ocupación de las mesas.
@@ -59,6 +70,8 @@ export function POSPage() {
   const loadOrder = useCartStore((state) => state.loadOrder);
   const clearCart = useCartStore((state) => state.clearCart);
   const loadedOrder = useCartStore((state) => state.loadedOrder);
+  /** Ítems del ticket: lo que muestra el badge del FAB del carrito. */
+  const cartItems = useCartStore((state) => state.items);
 
   const load = useCallback(async () => {
     try {
@@ -147,6 +160,11 @@ export function POSPage() {
     });
     setSelectedId(order.id);
     setSelectedTable(table);
+
+    // Móvil/tablet: el panel del ticket está detrás del FAB, así que al
+    // cargar un pedido (o una mesa) se abre de una vez el drawer con lo
+    // que se va a cobrar. En escritorio el panel fijo ya está a la vista.
+    if (!isDesktop) setTicketOpen(true);
   };
 
   /** Clic en un pedido de la lista: busca su mesa (si es de tipo mesa). */
@@ -190,6 +208,7 @@ export function POSPage() {
    */
   const handleFacturado = () => {
     handleClearTicket();
+    setTicketOpen(false);
     void refresh();
   };
 
@@ -253,6 +272,24 @@ export function POSPage() {
       </div>
     );
 
+  // El MISMO ticket se usa en el panel fijo de escritorio y en el drawer
+  // móvil: todo su estado vive en `useCartStore`, así que duplicarlo en el
+  // DOM no genera conflictos.
+  const ticketNode = (
+    <OrderTicket
+      orderNumber={
+        selectedOrder ? formatOrderNumber(selectedOrder.orderNumber) : "Ticket nuevo"
+      }
+      table={selectedTable}
+      onClearTicket={loadedOrder ? handleClearTicket : undefined}
+      onCharge={handleCharge}
+      onSave={handleSave}
+    />
+  );
+
+  // Unidades del ticket: lo que muestra el badge del FAB
+  const ticketCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-muted/30 relative">
       <aside className="hidden w-[220px] flex-shrink-0 border-r bg-card lg:block h-full overflow-y-auto">
@@ -265,7 +302,7 @@ export function POSPage() {
         </div>
         <POSLayout
           main={
-            <div className="space-y-6">
+            <div className="space-y-6 pb-24 lg:pb-0">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h1 className="text-2xl font-semibold tracking-tight">Caja</h1>
@@ -285,20 +322,28 @@ export function POSPage() {
               {main}
             </div>
           }
-          sidebar={
-            <OrderTicket
-              orderNumber={
-                selectedOrder
-                  ? formatOrderNumber(selectedOrder.orderNumber)
-                  : "Ticket nuevo"
-              }
-              table={selectedTable}
-              onClearTicket={loadedOrder ? handleClearTicket : undefined}
-              onCharge={handleCharge}
-              onSave={handleSave}
-            />
-          }
+          sidebar={isDesktop ? ticketNode : null}
         />
+
+        {/* FAB del ticket (solo < lg): abre el ticket en drawer.
+            Ícono de caja registradora (facturación), no el carrito. */}
+        <CartFab
+          count={ticketCount}
+          onClick={() => setTicketOpen(true)}
+          label="Ver ticket"
+          icon={<Calculator className="h-6 w-6" strokeWidth={2.25} />}
+        />
+
+        {/* Drawer derecho con el mismo ticket (móvil/tablet) */}
+        <SideDrawer
+          open={ticketOpen}
+          onOpenChange={setTicketOpen}
+          title="Ticket de pedido"
+          showTitle={false}
+          icon={<Calculator className="h-5 w-5 text-primary" />}
+        >
+          {!isDesktop && ticketNode}
+        </SideDrawer>
 
         {/* Cobro: formulario con datos del cliente, efectivo y acciones de factura */}
         <ChargeDialog
