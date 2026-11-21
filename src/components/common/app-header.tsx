@@ -67,9 +67,11 @@ export function AppHeader() {
                     <Menu className="h-5 w-5" />
                 </Button>
 
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary text-xl">
-                    🥟
-                </div>
+                <img
+                    src="/favicon.svg"
+                    alt="RestoBar Manager"
+                    className="h-8 w-8 flex-shrink-0 rounded-lg"
+                />
                 <span
                     className="hidden sm:block text-lg font-bold text-primary truncate"
                     title={headquarter?.name ?? 'RestoBar Manager'}

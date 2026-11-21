@@ -61,9 +61,11 @@ export function MobileSidebarDrawer() {
           {/* Mobile header with close button */}
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground text-lg">
-                🥟
-              </div>
+              <img
+                src="/favicon.svg"
+                alt="RestoBar Manager"
+                className="h-9 w-9 rounded-lg"
+              />
               <span className="font-bold text-foreground">Menú</span>
             </div>
             <button

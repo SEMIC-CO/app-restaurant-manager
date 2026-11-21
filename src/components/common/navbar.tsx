@@ -28,9 +28,11 @@ export function Navbar({ businessName, businessLogo, links, rightContent }: Navb
             className="h-8 w-8 rounded-lg object-contain"
           />
         ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-lg">
-            🥟
-          </div>
+          <img
+            src="/favicon.svg"
+            alt={businessName}
+            className="h-8 w-8 rounded-lg"
+          />
         )}
         <span className="text-lg font-bold text-primary">{businessName}</span>
       </div>
