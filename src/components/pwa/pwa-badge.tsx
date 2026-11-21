@@ -6,7 +6,8 @@ export function PWABadge() {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegisteredSW(swUrl, r) {
+    onRegisteredSW(swUrl) {
+    // onRegisteredSW(swUrl, r) {
       console.log('Service Worker registrado:', swUrl)
     //   if (r) {
     //     setInterval(() => {
