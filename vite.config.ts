@@ -1,21 +1,35 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa';
+import fs from 'node:fs'
 import path from 'path'
+
+// Identifica este build. Se graba en el bundle y en dist/version.json: si el
+// serving sigue entregando la versión anterior, main.tsx lo detecta y fuerza
+// una recarga limpia (sin importar lo que haya cacheado el service worker).
+const APP_VERSION = `${Date.now().toString(36)}-${process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? 'local'}`
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+  },
   plugins: [
     react(),
     VitePWA({
-      // Con 'autoUpdate' la recarga es automática y el badge "Actualizar"
-      // nunca aparece: encima, puede recargar a un cajero a mitad de venta.
-      // En 'prompt' el SW queda en waiting y el badge ofrece actualizar.
-      registerType: 'prompt',
+      // Autorecarga cuando el SW detecta un build nuevo. La comprobación extra
+      // de version.json cubre el caso de que el servidor cachee sw.js.
+      registerType: 'autoUpdate',
       devOptions: {
         // En dev el SW precachea index.html y sirve la versión vieja aunque
         // HMR ya haya cambiado los archivos. La PWA se prueba con build+preview.
         enabled: false,
+      },
+      workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        // version.json se consulta siempre por red, nunca desde el precache.
+        globIgnores: ['version.json'],
       },
       includeAssets: [
         'favicon.svg',
@@ -50,6 +64,18 @@ export default defineConfig({
         ],
       },
     }),
+    {
+      name: 'app-version-file',
+      apply: 'build',
+      closeBundle() {
+        const outDir = path.resolve(import.meta.dirname, 'dist')
+        fs.mkdirSync(outDir, { recursive: true })
+        fs.writeFileSync(
+          path.join(outDir, 'version.json'),
+          JSON.stringify({ version: APP_VERSION }),
+        )
+      },
+    },
   ],
   resolve: {
     alias: {

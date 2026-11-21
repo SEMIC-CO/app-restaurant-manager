@@ -4,11 +4,11 @@ This template provides a minimal setup to get React working in Vite with HMR and
 
 ## PWA y actualizaciones
 
-El service worker usa `registerType: 'prompt'`: cuando hay una versión nueva aparece el aviso «Hay una nueva versión disponible» con el botón **Actualizar**. No recarga solo, para no interrumpir una venta en curso. La comprobación se fuerza cada hora y al volver a la pestaña.
+El service worker usa `registerType: 'autoUpdate'` y se comprueba también cada hora y al volver a la pestaña. Como respaldo, cada build genera `dist/version.json` con un identificador único: al cargar, la app lo pide por red y, si no coincide con el bundle, da de baja el SW, limpia las cachés y recarga. Así basta con recargar para ver el build nuevo aunque el servidor haya cacheado `sw.js`.
 
 En desarrollo el service worker está desactivado para que HMR no sirva archivos en caché. Para probar la PWA usa `pnpm build && pnpm preview`.
 
-**Importante al desplegar:** el servidor debe servir `sw.js` e `index.html` con `Cache-Control: no-cache` (o `no-store`). Si `sw.js` se sirve con una caché larga, el navegador nunca pide la versión nueva y la PWA se queda con el build anterior aunque ya se haya desplegado.
+Recomendado al desplegar: servir `sw.js`, `index.html` y `version.json` con `Cache-Control: no-cache`. El mecanismo de `version.json` ya cubre el caso de que no se pueda configurar el servidor.
 
 Currently, two official plugins are available:
 
