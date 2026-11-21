@@ -179,7 +179,7 @@ export function RegisterPage() {
             </div>
           </div>
           <CardTitle className="text-2xl">Crear cuenta nueva</CardTitle>
-          <CardDescription>Regístrate en Restaurant Management</CardDescription>
+          <CardDescription>Regístrate en RestoBar Manager</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-5">

@@ -1,4 +1,4 @@
-# Copilot Instructions for Restaurant Management App
+# Copilot Instructions for RestoBar Manager App
 
 ## Project Overview
 A React 19 + TypeScript restaurant POS (Point of Sale) application for managing orders, products, and payments. Built with Vite 7, Tailwind CSS 4, and shadcn/ui.

@@ -135,7 +135,7 @@ export function LoginPage() {
             </div>
           </div>
           <CardTitle className="text-2xl">Bienvenido de nuevo</CardTitle>
-          <CardDescription>Ingresa a tu cuenta de Empanada Manager</CardDescription>
+          <CardDescription>Ingresa a tu cuenta de RestoBar Manager</CardDescription>
         </CardHeader>
         
         <form onSubmit={handleSubmit(onSubmit)}>

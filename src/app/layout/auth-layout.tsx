@@ -10,7 +10,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         <footer className="mt-8 text-center text-sm text-neutral-500">
           <p className="flex items-center justify-center gap-2">
             <span className="text-base">🧾</span>
-            <span>© 2026 RESTAURANT MANAGEMENT</span>
+            <span>© 2026 RESTOBAR MANAGER</span>
           </p>
           <p className="mt-1 text-xs">SISTEMA DE GESTIÓN DE INVENTARIO/CAJA</p>
         </footer>

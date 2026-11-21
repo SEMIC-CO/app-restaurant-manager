@@ -115,7 +115,7 @@ export function ActivateAccountPage() {
           </div>
           <CardTitle className="text-2xl">Activar cuenta</CardTitle>
           <CardDescription>
-            Confirma tu correo para empezar a usar Restaurant Management
+            Confirma tu correo para empezar a usar RestoBar Manager
           </CardDescription>
         </CardHeader>
 

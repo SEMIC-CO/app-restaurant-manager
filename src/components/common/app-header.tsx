@@ -72,9 +72,9 @@ export function AppHeader() {
                 </div>
                 <span
                     className="hidden sm:block text-lg font-bold text-primary truncate"
-                    title={headquarter?.name ?? 'Empanadas Manager'}
+                    title={headquarter?.name ?? 'RestoBar Manager'}
                 >
-                    {headquarter?.name ?? 'Empanadas Manager'}
+                    {headquarter?.name ?? 'RestoBar Manager'}
                 </span>
             </div>
 
