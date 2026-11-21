@@ -34,10 +34,12 @@ import {
 import { Toaster } from '@/components/ui';
 import { MobileSidebarDrawer, ProtectedRoute, PublicRoute } from '@/components/common';
 import { useSessionBootstrap, useNavigationBootstrap } from '@/hooks';
+import { PWABadge } from './components/pwa/pwa-badge';
 
 function App() {
   useSessionBootstrap();
   useNavigationBootstrap();
+
 
   return (
     <BrowserRouter>
@@ -101,6 +103,8 @@ function App() {
       </Routes>
       <MobileSidebarDrawer />
       <Toaster />
+      <PWABadge />
+
     </BrowserRouter>
   );
 }
