@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import { forceAppUpdate } from '@/utils'
 
 declare const __APP_VERSION__: string
 
@@ -23,15 +24,7 @@ async function ensureLatestBuild(): Promise<void> {
     if (sessionStorage.getItem('app-version-reload') === data.version) return
     sessionStorage.setItem('app-version-reload', data.version)
 
-    if ('serviceWorker' in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations()
-      await Promise.all(registrations.map((registration) => registration.unregister()))
-    }
-    if ('caches' in window) {
-      const keys = await caches.keys()
-      await Promise.all(keys.map((key) => caches.delete(key)))
-    }
-    window.location.replace(`/?v=${encodeURIComponent(data.version)}`)
+    await forceAppUpdate(data.version)
   } catch {
     // Sin conexión o version.json no disponible: sigue el ciclo normal del SW.
   }

@@ -28,8 +28,13 @@ export default defineConfig({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
-        // version.json se consulta siempre por red, nunca desde el precache.
-        globIgnores: ['version.json'],
+        // Sin fallback de navegación: el SW NUNCA sirve index.html desde el
+        // precache. Así cada recarga va al servidor y trae el bundle nuevo.
+        navigateFallback: null,
+        // precacheAndRoute intercepta cualquier URL precacheada, incluido
+        // index.html. Hay que excluirlo del precache (globIgnores) para que la
+        // recarga siempre vaya al servidor. version.json tampoco se precachea.
+        globIgnores: ['**/index.html', 'version.json'],
       },
       includeAssets: [
         'favicon.svg',
