@@ -69,6 +69,19 @@ export function clearSessionScope() {
 }
 
 /**
+ * La app está abierta como PWA instalada. En ese modo el navegador puede
+ * descartar el sessionStorage al cerrar la ventana (algo que no pasa en una
+ * pestaña normal), así que la sesión debe marcarse como persistente.
+ */
+export function isStandalonePwa(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
+}
+
+/**
  * Elimina la sesión guardada por versiones anteriores, que dejaban el
  * access token en localStorage (legible desde JS).
  */

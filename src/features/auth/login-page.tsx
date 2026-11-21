@@ -6,7 +6,13 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Button, Input, Label, Checkbox } from '@/components/ui';
 import { AuthLayout } from '@/app/layout';
 import { authService } from '@/services';
-import { useAuthStore, useNavigationStore, firstMenuPath, writeSessionScope } from '@/store';
+import {
+  useAuthStore,
+  useNavigationStore,
+  firstMenuPath,
+  isStandalonePwa,
+  writeSessionScope,
+} from '@/store';
 import { toast } from '@/hooks';
 
 const loginSchema = z.object({
@@ -84,7 +90,10 @@ export function LoginPage() {
 
       if (resp.code === 200) {
         setSession(resp.data.accessToken, resp.data.user);
-        writeSessionScope(data.rememberMe ? 'persistent' : 'session');
+        // En PWA instalada el sessionStorage no sobrevive al cierre de la app.
+        writeSessionScope(
+          data.rememberMe || isStandalonePwa() ? 'persistent' : 'session',
+        );
         toast({
           variant: 'success',
           title: '✅ Sesión iniciada',

@@ -1,4 +1,4 @@
-import { hasSessionScope, useAuthStore } from '@/store/auth-store';
+import { useAuthStore } from '@/store/auth-store';
 import type { ApiResponse, LoginResult } from '@/types';
 
 const BASE_URL = import.meta.env.VITE_URL_API ?? '';
@@ -77,7 +77,9 @@ export const apiFetch = async <T>(path: string, options?: RequestInit): Promise<
         let data = await request(path, options ?? {}, token);
         const isAuthEndpoint = path.startsWith('auth/');
 
-        if (data?.code === 401 && !isAuthEndpoint && (token || hasSessionScope())) {
+        // Ante un 401 se intenta siempre la renovación: la credencial es la
+        // cookie httpOnly, no el marcador de ámbito (que en PWA puede perderse).
+        if (data?.code === 401 && !isAuthEndpoint) {
             const refreshed = await refreshSession();
             if (refreshed?.data?.accessToken) {
                 data = await request(path, options ?? {}, refreshed.data.accessToken);

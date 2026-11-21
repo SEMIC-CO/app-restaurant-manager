@@ -14,6 +14,7 @@ export {
   readSessionScope,
   writeSessionScope,
   clearSessionScope,
+  isStandalonePwa,
   purgeLegacySession,
   type AuthState,
   type AuthStatus,
