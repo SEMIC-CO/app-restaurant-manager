@@ -1,62 +1,26 @@
-import { useRegisterSW } from 'virtual:pwa-register/react'
+import { useEffect } from 'react'
+import { Workbox } from 'workbox-window'
 
+declare const __APP_VERSION__: string
+
+/**
+ * Registro del service worker. No muestra ningún aviso: el SW se registra con
+ * `/sw.js?v=<build>` porque Cloudflare cachea por URL completa (con `/sw.js`
+ * a secas se quedaba 4 horas con una versión anterior) y recarga la página
+ * automáticamente cuando se activa una versión nueva.
+ */
 export function PWABadge() {
-  const {
-    offlineReady: [offlineReady, setOfflineReady],
-    needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
-    onRegisteredSW(swUrl, registration) {
-      console.log('Service Worker registrado:', swUrl)
-      if (registration) {
-        // El navegador solo comprueba si hay SW nuevo al navegar. Una PWA que
-        // se queda abierta (el POS) no se enteraría de las novedades: forzamos
-        // la comprobación cada hora y al volver a la pestaña.
-        setInterval(() => void registration.update(), 60 * 60 * 1000)
-        document.addEventListener('visibilitychange', () => {
-          if (document.visibilityState === 'visible') {
-            void registration.update()
-          }
-        })
-      }
-    },
-    onRegisterError(error) {
+  useEffect(() => {
+    if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return
+
+    const wb = new Workbox(`/sw.js?v=${__APP_VERSION__}`, { scope: '/' })
+    wb.addEventListener('activated', (event) => {
+      if (event.isUpdate || event.isExternal) window.location.reload()
+    })
+    void wb.register().catch((error: unknown) => {
       console.error('Error al registrar Service Worker:', error)
-    },
-  })
+    })
+  }, [])
 
-  const close = () => {
-    setOfflineReady(false)
-    setNeedRefresh(false)
-  }
-
-  if (!offlineReady && !needRefresh) return null
-
-  return (
-    <div className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-lg border border-neutral-800 bg-neutral-900 p-4 text-sm text-white shadow-lg">
-      <div>
-        {offlineReady ? (
-          <span>RestoBar Manager está listo para usarse.</span>
-        ) : (
-          <span>Hay una nueva versión disponible.</span>
-        )}
-      </div>
-
-      {needRefresh && (
-        <button
-          onClick={() => updateServiceWorker(true)}
-          className="rounded bg-[#FF6600] px-3 py-1.5 font-medium text-white hover:bg-orange-600"
-        >
-          Actualizar
-        </button>
-      )}
-
-      <button
-        onClick={close}
-        className="rounded border border-neutral-700 px-2.5 py-1.5 text-neutral-300 hover:bg-neutral-800"
-      >
-        Cerrar
-      </button>
-    </div>
-  )
+  return null
 }

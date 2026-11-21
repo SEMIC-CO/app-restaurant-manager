@@ -20,6 +20,10 @@ export default defineConfig({
       // Autorecarga cuando el SW detecta un build nuevo. La comprobación extra
       // de version.json cubre el caso de que el servidor cachee sw.js.
       registerType: 'autoUpdate',
+      // El registro lo hace PWABadge con /sw.js?v=<versión>: Cloudflare
+      // cachea por URL completa, así el query asegura que cada build traiga
+      // un SW nuevo aunque el proxy tenga cacheado /sw.js.
+      injectRegister: false,
       devOptions: {
         // En dev el SW precachea index.html y sirve la versión vieja aunque
         // HMR ya haya cambiado los archivos. La PWA se prueba con build+preview.
@@ -28,6 +32,7 @@ export default defineConfig({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
+        cleanupOutdatedCaches: true,
         // Sin fallback de navegación: el SW NUNCA sirve index.html desde el
         // precache. Así cada recarga va al servidor y trae el bundle nuevo.
         navigateFallback: null,
