@@ -31,7 +31,7 @@ export function PWABadge() {
     <div className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-lg border border-neutral-800 bg-neutral-900 p-4 text-sm text-white shadow-lg">
       <div>
         {offlineReady ? (
-          <span>RestoBar Manager está listo para usarse sin conexión.</span>
+          <span>RestoBar Manager está listo para usarse.</span>
         ) : (
           <span>Hay una nueva versión disponible.</span>
         )}
