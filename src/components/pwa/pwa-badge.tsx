@@ -6,14 +6,19 @@ export function PWABadge() {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegisteredSW(swUrl) {
-    // onRegisteredSW(swUrl, r) {
+    onRegisteredSW(swUrl, registration) {
       console.log('Service Worker registrado:', swUrl)
-    //   if (r) {
-    //     setInterval(() => {
-    //       r.update()
-    //     }, 60 * 60 * 1000)
-    //   }
+      if (registration) {
+        // El navegador solo comprueba si hay SW nuevo al navegar. Una PWA que
+        // se queda abierta (el POS) no se enteraría de las novedades: forzamos
+        // la comprobación cada hora y al volver a la pestaña.
+        setInterval(() => void registration.update(), 60 * 60 * 1000)
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') {
+            void registration.update()
+          }
+        })
+      }
     },
     onRegisterError(error) {
       console.error('Error al registrar Service Worker:', error)

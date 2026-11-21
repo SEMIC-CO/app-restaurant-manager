@@ -2,6 +2,14 @@
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
+## PWA y actualizaciones
+
+El service worker usa `registerType: 'prompt'`: cuando hay una versión nueva aparece el aviso «Hay una nueva versión disponible» con el botón **Actualizar**. No recarga solo, para no interrumpir una venta en curso. La comprobación se fuerza cada hora y al volver a la pestaña.
+
+En desarrollo el service worker está desactivado para que HMR no sirva archivos en caché. Para probar la PWA usa `pnpm build && pnpm preview`.
+
+**Importante al desplegar:** el servidor debe servir `sw.js` e `index.html` con `Cache-Control: no-cache` (o `no-store`). Si `sw.js` se sirve con una caché larga, el navegador nunca pide la versión nueva y la PWA se queda con el build anterior aunque ya se haya desplegado.
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh

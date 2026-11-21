@@ -8,9 +8,14 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // Con 'autoUpdate' la recarga es automática y el badge "Actualizar"
+      // nunca aparece: encima, puede recargar a un cajero a mitad de venta.
+      // En 'prompt' el SW queda en waiting y el badge ofrece actualizar.
+      registerType: 'prompt',
       devOptions: {
-        enabled: true, // <-- Permite probar la PWA e iconos en npm run dev
+        // En dev el SW precachea index.html y sirve la versión vieja aunque
+        // HMR ya haya cambiado los archivos. La PWA se prueba con build+preview.
+        enabled: false,
       },
       includeAssets: [
         'favicon.svg',
