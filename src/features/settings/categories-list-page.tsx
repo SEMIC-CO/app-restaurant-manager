@@ -206,14 +206,14 @@ export function CategoriesListPage() {
       main={
         <div className="space-y-6">
           <div className="border-b bg-background px-6 py-4 rounded-lg">
-            <div className="flex items-center justify-between mb-4">
-              <div>
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0">
                 <h1 className="text-2xl font-semibold tracking-tight">Categorías</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Administra las categorías de productos de tu sede
                 </p>
               </div>
-              <Button className="gap-2" onClick={handleCreateCategory}>
+              <Button className="shrink-0 gap-2" onClick={handleCreateCategory}>
                 <Plus className="h-4 w-4" />
                 Nueva Categoría
               </Button>

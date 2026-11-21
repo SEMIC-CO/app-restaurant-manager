@@ -81,8 +81,10 @@ export function AlertsPanel({ alerts, className }: AlertsPanelProps) {
   const rows = [...stockRows, ...otherRows];
   const hasHiddenStock = hiddenStock > 0;
 
+  // `min-w-0` es clave en móvil: sin él, los textos `truncate` fijan el ancho
+  // mínimo de la tarjeta y estiran toda la fila del grid (scroll horizontal).
   return (
-    <Card className={cn('p-6', className)}>
+    <Card className={cn('min-w-0 p-6', className)}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="font-semibold">Alertas</h3>

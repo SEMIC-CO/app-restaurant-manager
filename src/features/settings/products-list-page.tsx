@@ -177,8 +177,8 @@ export function ProductsListPage() {
         <div className="space-y-6">
           {/* Header */}
           <div className="border-b bg-background px-6 py-4 rounded-lg">
-            <div className="flex items-center justify-between mb-4">
-              <div>
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0">
                 <h1 className="text-2xl font-semibold tracking-tight">
                   Productos del Menú Registrados
                 </h1>
@@ -186,7 +186,10 @@ export function ProductsListPage() {
                   Administre los productos del menú
                 </p>
               </div>
-              <Button className="gap-2" onClick={() => navigate('/productos/nuevo')}>
+              <Button
+                className="shrink-0 gap-2"
+                onClick={() => navigate('/productos/nuevo')}
+              >
                 <Plus className="h-4 w-4" />
                 Nuevo Producto
               </Button>

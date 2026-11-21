@@ -97,10 +97,12 @@ export function DashboardKpiCards({ kpi }: DashboardKpiCardsProps) {
     },
   ];
 
+  // Las tarjetas llevan `min-w-0` para que los valores `truncate` no fijen
+  // el ancho mínimo de la columna en pantallas chicas.
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {definitions.map(({ label, value, delta, previous, icon: Icon, tone }) => (
-        <Card key={label} className="p-6">
+        <Card key={label} className="min-w-0 p-6">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-medium uppercase text-muted-foreground">

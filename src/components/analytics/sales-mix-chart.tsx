@@ -16,7 +16,7 @@ interface SalesMixChartProps {
  */
 export function SalesMixChart({ categories, totalLabel = 'VENTAS' }: SalesMixChartProps) {
   return (
-    <Card className="p-6">
+    <Card className="min-w-0 p-6">
       <div>
         <h3 className="font-semibold">Mix de Ventas</h3>
         <p className="text-sm text-muted-foreground">Distribución por categoría</p>

@@ -16,7 +16,7 @@ interface FlavorRankingChartProps {
  */
 export function FlavorRankingChart({ flavors, onViewDetails }: FlavorRankingChartProps) {
   return (
-    <Card className="p-6">
+    <Card className="min-w-0 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold">Ranking de Productos</h3>

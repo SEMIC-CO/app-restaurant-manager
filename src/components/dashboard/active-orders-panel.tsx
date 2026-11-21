@@ -33,7 +33,7 @@ export function ActiveOrdersPanel({
     tables.total > 0 ? Math.round((tables.occupied * 100) / tables.total) : 0;
 
   return (
-    <Card className={cn('p-6', className)}>
+    <Card className={cn('min-w-0 p-6', className)}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="font-semibold">Salón en vivo</h3>

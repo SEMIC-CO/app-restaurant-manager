@@ -25,7 +25,7 @@ function timeOf(iso: string): string {
  */
 export function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
   return (
-    <Card>
+    <Card className="min-w-0">
       <div className="flex items-center justify-between gap-3 px-6 py-4 border-b">
         <div>
           <h2 className="text-lg font-semibold">Últimos movimientos</h2>

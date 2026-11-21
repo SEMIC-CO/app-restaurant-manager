@@ -235,14 +235,14 @@ export function EmployeesListPage() {
       main={
         <div className="space-y-6">
           <div className="border-b bg-background px-6 py-4 rounded-lg">
-            <div className="flex items-center justify-between mb-4">
-              <div>
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0">
                 <h1 className="text-2xl font-semibold tracking-tight">Empleados</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Registra al personal de tu sede y gestiona sus pagos de nómina
                 </p>
               </div>
-              <Button className="gap-2" onClick={handleCreateEmployee}>
+              <Button className="shrink-0 gap-2" onClick={handleCreateEmployee}>
                 <Plus className="h-4 w-4" />
                 Nuevo Empleado
               </Button>

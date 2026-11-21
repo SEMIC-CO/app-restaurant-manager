@@ -21,10 +21,12 @@ export function BillingFooter({
   onExportExcel, 
   onPrintReport 
 }: BillingFooterProps) {
+  // En móvil los datos y las acciones se apilan: el flex sin wrap obligaba
+  // a los botones a salirse del ancho y generaba scroll horizontal.
   return (
-    <div className="flex items-center justify-between border-t bg-card px-6 py-4">
+    <div className="flex flex-wrap items-center justify-between gap-4 border-t bg-card px-6 py-4">
       {/* Stats */}
-      <div className="flex items-center gap-8">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-8 gap-y-3">
         <div>
           <p className="text-xs font-medium uppercase text-muted-foreground">
             {totalLabel}
@@ -42,12 +44,16 @@ export function BillingFooter({
       </div>
 
       {/* Actions */}
-      <div className="flex gap-3">
-        <Button variant="outline" className="gap-2" onClick={onExportExcel}>
+      <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+        <Button
+          variant="outline"
+          className="w-full gap-2 sm:w-auto"
+          onClick={onExportExcel}
+        >
           <Download className="h-4 w-4" />
           Exportar Excel
         </Button>
-        <Button className="gap-2" onClick={onPrintReport}>
+        <Button className="w-full gap-2 sm:w-auto" onClick={onPrintReport}>
           <Printer className="h-4 w-4" />
           Imprimir Reporte
         </Button>

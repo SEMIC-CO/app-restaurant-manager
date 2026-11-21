@@ -366,14 +366,14 @@ export function TablesListPage() {
       main={
         <div className="space-y-6">
           <div className="border-b bg-background px-6 py-4 rounded-lg">
-            <div className="flex items-center justify-between mb-4">
-              <div>
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0">
                 <h1 className="text-2xl font-semibold tracking-tight">Mesas</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Administra las mesas y las secciones del restaurante
                 </p>
               </div>
-              <Button className="gap-2" onClick={handleCreateTable}>
+              <Button className="shrink-0 gap-2" onClick={handleCreateTable}>
                 <Plus className="h-4 w-4" />
                 Nueva Mesa
               </Button>
@@ -530,9 +530,9 @@ export function TablesListPage() {
             </CardContent>
           </Card>
 
-          <div className="border-b bg-background px-6 py-4 rounded-lg flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold flex items-center gap-2">
+          <div className="flex flex-wrap items-start justify-between gap-4 rounded-lg border-b bg-background px-6 py-4">
+            <div className="min-w-0">
+              <h2 className="flex items-center gap-2 text-lg font-bold">
                 <LayoutPanelTop className="h-5 w-5" />
                 Secciones
               </h2>
@@ -540,7 +540,11 @@ export function TablesListPage() {
                 Agrupa las mesas por zona del restaurante (Terraza, Salón, etc.)
               </p>
             </div>
-            <Button variant="outline" className="gap-2" onClick={handleCreateSection}>
+            <Button
+              variant="outline"
+              className="shrink-0 gap-2"
+              onClick={handleCreateSection}
+            >
               <Plus className="h-4 w-4" />
               Nueva Sección
             </Button>

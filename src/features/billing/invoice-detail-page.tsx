@@ -268,9 +268,9 @@ export function InvoiceDetailPage() {
           </div>
 
           {/* Header */}
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <div className="flex items-center gap-3">
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-2xl font-semibold tracking-tight">Detalle de Facturación</h1>
                 {getStatusBadge(invoice.status)}
               </div>
@@ -282,14 +282,18 @@ export function InvoiceDetailPage() {
                   : 'Comprobante fiscal de la orden asociada'}
               </p>
             </div>
-            <div className="flex gap-3">
-              <Button variant="outline" className="gap-2" onClick={handleBack}>
+            <div className="flex flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
+              <Button
+                variant="outline"
+                className="w-full gap-2 sm:w-auto"
+                onClick={handleBack}
+              >
                 <ArrowLeft className="h-4 w-4" />
                 Volver a facturas
               </Button>
               {invoice.status === 'pending' && (
                 <Button
-                  className="gap-2"
+                  className="w-full gap-2 sm:w-auto"
                   onClick={() => void handleEmit()}
                   disabled={emitting}
                 >
@@ -297,7 +301,11 @@ export function InvoiceDetailPage() {
                   {emitting ? 'Emitiendo…' : 'Emitir Factura'}
                 </Button>
               )}
-              <Button variant="outline" className="gap-2" onClick={handlePrint}>
+              <Button
+                variant="outline"
+                className="w-full gap-2 sm:w-auto"
+                onClick={handlePrint}
+              >
                 <Printer className="h-4 w-4" />
                 Imprimir
               </Button>
