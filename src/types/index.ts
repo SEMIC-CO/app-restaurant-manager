@@ -498,8 +498,9 @@ export interface ListInventoryCategoriesParams {
 }
 
 /**
- * Artículo de inventario. El catálogo es global (la tabla no tiene empresa ni
- * sede); `currentStock` es el stock de la sede del JWT, calculado desde
+ * Artículo de inventario. El catálogo es por sede (la empresa va implícita en
+ * la sede del JWT); `code` es único dentro de la sede y se puede repetir en
+ * otras. `currentStock` es el stock de la sede del JWT, calculado desde
  * `inventory_movements` por el backend.
  */
 export interface ApiInventoryItem {

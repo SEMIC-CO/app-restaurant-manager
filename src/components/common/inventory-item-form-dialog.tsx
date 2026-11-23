@@ -166,7 +166,9 @@ export function InventoryItemFormDialog({
             <div className="space-y-2">
               <Label htmlFor="inventory-item-code">Código (opcional)</Label>
               <Input id="inventory-item-code" placeholder="HAR-01" {...register('code')} />
-              <p className="text-xs text-muted-foreground">Debe ser único</p>
+              <p className="text-xs text-muted-foreground">
+                Único por sede; se puede repetir en otras sedes/empresas
+              </p>
               {errors.code && (
                 <p className="text-xs text-red-500">{errors.code.message}</p>
               )}
