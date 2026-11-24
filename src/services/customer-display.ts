@@ -70,9 +70,9 @@ export function announceCustomerDisplayReady(headquarterId: number | null): void
   channel.close();
 }
 
-/** Abre (o enfoca) la segunda pantalla. `false` si el navegador bloqueó el popup. */
+/** Abre la vista cliente en una pestaña nueva. `false` si el navegador la bloqueó. */
 export function openCustomerDisplay(): boolean {
-  const win = window.open('/caja/vista-cliente', 'vista-cliente');
+  const win = window.open('/caja/vista-cliente', '_blank');
   if (!win) return false;
   win.focus();
   return true;
