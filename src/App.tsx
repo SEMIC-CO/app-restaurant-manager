@@ -30,6 +30,7 @@ import {
   OrdersPage,
   OrderCreatePage,
   TablesPage,
+  CustomerDisplayPage,
 } from '@/features';
 import { Toaster } from '@/components/ui';
 import { MobileSidebarDrawer, ProtectedRoute, PublicRoute } from '@/components/common';
@@ -66,6 +67,7 @@ function App() {
           <Route path="/cocina" element={<KitchenPage />} />
           <Route path="/entregas" element={<DeliveryPage />} />
           <Route path="/caja" element={<POSPage />} />
+          <Route path="/caja/vista-cliente" element={<CustomerDisplayPage />} />
           <Route path="/facturacion" element={<BillingPage />} />
           <Route path="/facturacion/:invoiceId" element={<InvoiceDetailPage />} />
           <Route path="/reportes" element={<AnalyticsPage />} />

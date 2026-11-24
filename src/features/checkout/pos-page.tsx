@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Calculator } from "lucide-react";
+import { Calculator, MonitorPlay } from "lucide-react";
 import { POSLayout } from "@/app/layout";
 import { ConfigSidebar, AppHeader, SideDrawer } from "@/components/common";
+import { Button } from "@/components/ui";
 import {
   CartFab,
   CashierFilters,
@@ -12,8 +13,16 @@ import {
   type CashierView,
 } from "@/components/pos";
 import { toast, useFloorTables, useMediaQuery, useOrderEvents } from "@/hooks";
-import { orderService, productService } from "@/services";
-import { useCartStore } from "@/store";
+import {
+  openCustomerDisplay,
+  orderService,
+  productService,
+  publishCustomerDisplay,
+  subscribeCustomerDisplay,
+  type CustomerDisplayPhase,
+  type CustomerDisplaySnapshot,
+} from "@/services";
+import { useAuthStore, useCartStore } from "@/store";
 import { formatOrderNumber, mapApiOrder } from "@/utils";
 import type { FloorTable, Order } from "@/types";
 
@@ -36,6 +45,31 @@ function apiErrorMessage(resp: { code: number; msg: string; data: unknown }, fal
   return resp.msg || fallback;
 }
 
+/** Snapshot que se envía a la segunda pantalla con los datos reales del ticket. */
+function buildDisplaySnapshot(
+  cart: ReturnType<typeof useCartStore.getState>,
+  order: Order | null,
+  phase: CustomerDisplayPhase,
+): CustomerDisplaySnapshot {
+  const items = cart.items.map((item) => ({
+    name: item.productName,
+    quantity: item.quantity,
+    subtotal: Number(item.subtotal),
+  }));
+  return {
+    phase,
+    orderNumber: order?.orderNumber ?? cart.loadedOrder?.orderNumber ?? null,
+    table: cart.table?.name ?? order?.tableNumber ?? null,
+    customerName: cart.customerName || order?.customerName || null,
+    items,
+    subtotal: cart.getSubtotal(),
+    discount: cart.getDiscount(),
+    tip: cart.getTip(),
+    total: cart.getPayable(),
+    paymentMethod: items.length > 0 ? cart.paymentMethod : null,
+  };
+}
+
 /**
  * Caja (/caja): dos filtros en el área principal — **Pedidos** (los que
  * faltan por cobrar: pendientes, en preparación, listos y entregados) y
@@ -55,6 +89,9 @@ export function POSPage() {
   /** En pantallas < lg el ticket se abre como drawer desde el FAB. */
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [ticketOpen, setTicketOpen] = useState(false);
+  /** Estado que se refleja en la vista cliente (segunda pantalla). */
+  const [displayPhase, setDisplayPhase] = useState<CustomerDisplayPhase>("idle");
+  const [paidSnapshot, setPaidSnapshot] = useState<CustomerDisplaySnapshot | null>(null);
 
   // Si la ventana crece a escritorio vuelve el panel fijo: se cierra el
   // drawer para no dejarlo abierto por detrás del panel.
@@ -67,11 +104,15 @@ export function POSPage() {
   const { tables, loading: tablesLoading, refresh } = useFloorTables({
     poll: false,
   });
+  const headquarterId = useAuthStore((state) => state.user?.headquarterId ?? null);
   const loadOrder = useCartStore((state) => state.loadOrder);
   const clearCart = useCartStore((state) => state.clearCart);
   const loadedOrder = useCartStore((state) => state.loadedOrder);
   /** Ítems del ticket: lo que muestra el badge del FAB del carrito. */
   const cartItems = useCartStore((state) => state.items);
+  // Cambios del ticket que deben reflejarse en la vista cliente.
+  const paymentMethod = useCartStore((state) => state.paymentMethod);
+  const tipRate = useCartStore((state) => state.tipRate);
 
   const load = useCallback(async () => {
     try {
@@ -160,6 +201,8 @@ export function POSPage() {
     });
     setSelectedId(order.id);
     setSelectedTable(table);
+    setDisplayPhase("charging");
+    setPaidSnapshot(null);
 
     // Móvil/tablet: el panel del ticket está detrás del FAB, así que al
     // cargar un pedido (o una mesa) se abre de una vez el drawer con lo
@@ -200,6 +243,8 @@ export function POSPage() {
     clearCart();
     setSelectedId(null);
     setSelectedTable(null);
+    setDisplayPhase("idle");
+    setPaidSnapshot(null);
   };
 
   /**
@@ -207,14 +252,45 @@ export function POSPage() {
    * al instante para ver la mesa liberada (además del socket).
    */
   const handleFacturado = () => {
-    handleClearTicket();
+    // Se publica el estado "pagado" ANTES de vaciar el carrito para que la
+    // vista cliente conserve el detalle y el total de lo recién cobrado.
+    setPaidSnapshot(
+      buildDisplaySnapshot(useCartStore.getState(), selectedOrder, "paid"),
+    );
+    setDisplayPhase("paid");
+    clearCart();
+    setSelectedId(null);
+    setSelectedTable(null);
     setTicketOpen(false);
     void refresh();
   };
 
-  const handleCharge = () => setChargeOpen(true);
-  const handleSave = () => console.log("Saving order...");
+  /** Publica el ticket en la vista cliente y responde cuando se abre. */
+  const publishDisplay = useCallback(() => {
+    const snapshot =
+      displayPhase === "paid" && paidSnapshot
+        ? paidSnapshot
+        : buildDisplaySnapshot(
+            useCartStore.getState(),
+            selectedOrder,
+            displayPhase,
+          );
+    publishCustomerDisplay(headquarterId, snapshot);
+  }, [displayPhase, headquarterId, paidSnapshot, selectedOrder]);
 
+  useEffect(() => {
+    publishDisplay();
+  }, [publishDisplay, cartItems, paymentMethod, tipRate, loadedOrder]);
+
+  useEffect(
+    () =>
+      subscribeCustomerDisplay(headquarterId, (message) => {
+        if (message.type === "ready") publishDisplay();
+      }),
+    [headquarterId, publishDisplay],
+  );
+
+  const handleCharge = () => setChargeOpen(true);
   const filters = useMemo(
     () => [
       { id: "pedidos" as const, label: "Pedidos", count: orders.length },
@@ -240,6 +316,7 @@ export function POSPage() {
           tables={occupiedTables}
           onSelectTable={handleSelectTable}
           selectedId={selectedTable?.id ?? null}
+          allowOccupied
         />
       )
     ) : ordersLoading && orders.length === 0 ? (
@@ -283,7 +360,6 @@ export function POSPage() {
       table={selectedTable}
       onClearTicket={loadedOrder ? handleClearTicket : undefined}
       onCharge={handleCharge}
-      onSave={handleSave}
     />
   );
 
@@ -312,11 +388,31 @@ export function POSPage() {
                       : "Haz click en un pedido para cargarlo en el ticket"}
                   </p>
                 </div>
-                <CashierFilters
-                  filters={filters}
-                  activeView={view}
-                  onViewChange={setView}
-                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <CashierFilters
+                    filters={filters}
+                    activeView={view}
+                    onViewChange={setView}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => {
+                      if (!openCustomerDisplay()) {
+                        toast({
+                          variant: "warning",
+                          title: "No se pudo abrir la vista cliente",
+                          description:
+                            "Permite ventanas emergentes para mostrar la segunda pantalla.",
+                        });
+                      }
+                    }}
+                  >
+                    <MonitorPlay className="h-4 w-4" />
+                    Vista cliente
+                  </Button>
+                </div>
               </div>
 
               {main}

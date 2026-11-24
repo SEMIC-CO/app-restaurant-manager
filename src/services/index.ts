@@ -21,6 +21,18 @@ export { orderService } from './order-service';
 export { invoiceService } from './invoice-service';
 export { connectOrderEvents } from './order-events';
 export type { OrderEventHandlers } from './order-events';
+export {
+  publishCustomerDisplay,
+  subscribeCustomerDisplay,
+  announceCustomerDisplayReady,
+  openCustomerDisplay,
+} from './customer-display';
+export type {
+  CustomerDisplaySnapshot,
+  CustomerDisplayMessage,
+  CustomerDisplayPhase,
+  CustomerDisplayItem,
+} from './customer-display';
 export { productService } from './product-service';
 export { reportService } from './report-service';
 export { expenseService } from './expense-service';

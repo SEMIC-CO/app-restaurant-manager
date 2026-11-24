@@ -1,4 +1,4 @@
-import { Printer, Banknote, CreditCard, QrCode, Users, X, BedDouble as BedDoubleIcon } from 'lucide-react';
+import { Banknote, CreditCard, QrCode, Users, X, BedDouble as BedDoubleIcon } from 'lucide-react';
 import { Button, ScrollArea, Badge } from '@/components/ui';
 import { OrderItemRow } from './order-item-row';
 import { formatCurrency } from '@/utils';
@@ -10,7 +10,6 @@ interface OrderTicketProps {
   orderNumber?: string;
   /** Mesa completa con su info. Muestra un bloque contextual superior si existe. */
   table?: FloorTable | null;
-  onSave?: () => void;
   onCharge?: () => void;
   /** Si el usuario puede "des-asignar" la mesa del ticket actual (opcional). */
   onClearTable?: () => void;
@@ -48,7 +47,6 @@ const TIP_OPTIONS: { rate: number; label: string }[] = [
 export function OrderTicket({
   orderNumber = '#ORD-0000',
   table,
-  onSave,
   onCharge,
   onClearTable,
   onClearTicket,
@@ -141,9 +139,6 @@ export function OrderTicket({
               <X className="h-4 w-4" />
             </Button>
           )}
-          <Button variant="ghost" size="icon" aria-label="Imprimir ticket">
-            <Printer className="h-4 w-4" />
-          </Button>
         </div>
       </div>
 
@@ -261,14 +256,6 @@ export function OrderTicket({
 
         {/* Action buttons */}
         <div className="flex gap-2 px-4 pb-4">
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={onSave}
-            disabled={isEmpty}
-          >
-            Guardar
-          </Button>
           <Button
             className="flex-1 gap-2"
             onClick={onCharge}

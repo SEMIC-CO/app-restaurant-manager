@@ -14,6 +14,11 @@ interface TablesGridProps {
    * del pedido); por defecto la cuadrícula de la vista de mesas (≈200px).
    */
   size?: 'default' | 'sm';
+  /**
+   * Permitir elegir mesas OCUPADAS (la Caja las selecciona para cobrar).
+   * Por defecto `false`: tomar un pedido nuevo solo se hace en mesas libres.
+   */
+  allowOccupied?: boolean;
 }
 
 /**
@@ -37,13 +42,13 @@ const GRID_CLASS = {
 const STATUS_CONFIG: Record<FloorTableStatus, { label: string; className: string; border: string; dot: string }> = {
   available: {
     label: 'Libre',
-    className: 'bg-card hover:bg-primary/5 border-border',
+    className: 'bg-card border-border',
     border: 'border-border',
     dot: 'bg-green-500',
   },
   occupied: {
     label: 'Ocupada',
-    className: 'bg-red-500/5 hover:bg-red-500/10 border-red-500/20',
+    className: 'bg-red-500/5 border-red-500/20',
     border: 'border-red-500/30',
     dot: 'bg-red-500',
   },
@@ -59,7 +64,7 @@ const STATUS_CONFIG: Record<FloorTableStatus, { label: string; className: string
  * - Capacidad (icono + número)
  * - Estado visualizado (Libre / Ocupada)
  */
-export function TablesGrid({ tables, onSelectTable, selectedId, loading, size = 'default' }: TablesGridProps) {
+export function TablesGrid({ tables, onSelectTable, selectedId, loading, size = 'default', allowOccupied = false }: TablesGridProps) {
   const compact = size === 'sm';
   const grid = GRID_CLASS[size];
 
@@ -94,20 +99,33 @@ export function TablesGrid({ tables, onSelectTable, selectedId, loading, size = 
     <div className={grid}>
       {tables.map((table) => {
         const config = STATUS_CONFIG[table.floorStatus];
-        const isClickable = Boolean(onSelectTable);
+        // Solo se puede elegir una mesa libre para tomar un pedido nuevo.
+        // La vista de Mesas muestra también las ocupadas (para que se vea el
+        // estado real), pero no deben abrir otro pedido.
+        const isSelectable =
+          Boolean(onSelectTable) &&
+          (table.floorStatus === 'available' || allowOccupied);
         const isSelected = selectedId != null && table.id === selectedId;
 
         return (
           <button
             key={table.id}
             type="button"
-            onClick={() => isClickable && onSelectTable?.(table)}
+            disabled={!isSelectable}
+            onClick={() => isSelectable && onSelectTable?.(table)}
+            title={
+              table.floorStatus === 'occupied' && !isSelectable
+                ? `Mesa ocupada${table.orderNumber ? ` · ${table.orderNumber}` : ''}`
+                : undefined
+            }
             className={cn(
               'group relative flex aspect-square flex-col justify-between rounded-xl border text-left transition-all',
-              'shadow-sm hover:shadow-md hover:-translate-y-0.5',
+              'shadow-sm',
               compact ? 'gap-1 p-2' : 'p-2 sm:p-3',
               config.className,
-              isClickable ? 'cursor-pointer' : 'cursor-default',
+              isSelectable
+                ? 'cursor-pointer hover:bg-primary/5 hover:shadow-md hover:-translate-y-0.5'
+                : 'cursor-not-allowed',
               isSelected && 'border-primary ring-2 ring-primary/40',
             )}
           >
