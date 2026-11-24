@@ -20,6 +20,37 @@
         } catch (e) {}
       })();
     </script>
+    <script>
+      // Preflight de versión: se ejecuta ANTES del módulo principal. Si el
+      // servidor/CDN entrega un index.html viejo, su JS ya no existe y el
+      // navegador recibe HTML con Content-Type text/html. Como main.tsx no
+      // llega a cargar, la recuperación tiene que estar aquí.
+      (function () {
+        var build = '__APP_VERSION_INLINE__';
+        if (!build || build.charAt(0) === '_') return;
+        fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
+          .then(function (resp) { return resp.ok ? resp.json() : null; })
+          .then(function (data) {
+            if (!data || !data.version || data.version === build) return;
+            try {
+              if (sessionStorage.getItem('app-version-reload') === data.version) return;
+              sessionStorage.setItem('app-version-reload', data.version);
+            } catch (e) {}
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                regs.forEach(function (reg) { reg.unregister(); });
+              }).catch(function () {});
+            }
+            if ('caches' in window) {
+              caches.keys().then(function (keys) {
+                keys.forEach(function (key) { caches.delete(key); });
+              }).catch(function () {});
+            }
+            location.replace(location.pathname + '?v=' + encodeURIComponent(data.version) + location.hash);
+          })
+          .catch(function () {});
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

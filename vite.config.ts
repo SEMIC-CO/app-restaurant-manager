@@ -86,6 +86,16 @@ export default defineConfig({
         )
       },
     },
+    {
+      // La comprobación de versión tiene que vivir FUERA del bundle: si el
+      // HTML cacheado apunta a un JS que ya no existe, el módulo falla con
+      // "Expected a JavaScript module script but ... text/html" y el código de
+      // main.tsx nunca se ejecuta para recuperarse.
+      name: 'app-version-inline',
+      transformIndexHtml(html) {
+        return html.replace('__APP_VERSION_INLINE__', APP_VERSION)
+      },
+    },
   ],
   resolve: {
     alias: {
