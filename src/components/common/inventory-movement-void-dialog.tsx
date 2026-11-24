@@ -76,7 +76,7 @@ export function InventoryMovementVoidDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-lg overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle>Anular movimiento #{movement.id}</DialogTitle>
           <DialogDescription>
@@ -135,7 +135,7 @@ export function InventoryMovementVoidDialog({
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button
               type="button"
               variant="outline"

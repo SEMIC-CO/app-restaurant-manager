@@ -259,7 +259,7 @@ export function InvoiceDetailPage() {
       main={
         <div className="flex flex-col h-full overflow-auto">
           {/* Breadcrumb */}
-          <div className="mb-2 text-sm text-muted-foreground">
+          <div className="mb-2 flex flex-wrap items-center text-sm text-muted-foreground">
             <span className="hover:text-foreground cursor-pointer" onClick={handleBack}>
               Facturación
             </span>
@@ -313,15 +313,15 @@ export function InvoiceDetailPage() {
           </div>
 
           {/* Content grid */}
-          <div className="grid gap-6 lg:grid-cols-3 flex-1">
+          <div className="grid min-w-0 flex-1 gap-6 lg:grid-cols-3">
             {/* Left column - Customer and Products */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="min-w-0 space-y-6 lg:col-span-2">
               <CustomerInfoCard customer={customer} />
               <ProductsSummaryCard products={products} />
             </div>
 
             {/* Right column - Payment summary */}
-            <div>
+            <div className="min-w-0">
               <PaymentSummaryCard
                 payment={payment}
                 onPrintReceipt={handlePrint}

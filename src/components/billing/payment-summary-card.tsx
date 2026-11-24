@@ -63,8 +63,8 @@ export function PaymentSummaryCard({
       {/* Total */}
       <div className="mt-6 border-t pt-4">
         <p className="text-xs text-muted-foreground uppercase">Total a Pagar</p>
-        <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold text-primary">
+        <div className="flex min-w-0 items-baseline gap-2">
+          <span className="break-words text-2xl font-bold text-primary sm:text-3xl">
             {formatCurrency(payment.total)}
           </span>
           <span className="text-sm text-muted-foreground">{payment.currency}</span>

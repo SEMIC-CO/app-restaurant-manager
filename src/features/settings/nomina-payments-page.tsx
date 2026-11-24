@@ -499,7 +499,7 @@ export function NominaPaymentsPage() {
           {/* Listado a pagar */}
           {loaded && (
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardHeader className="flex flex-col gap-4 space-y-0 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <Wallet className="h-5 w-5" />
@@ -510,8 +510,8 @@ export function NominaPaymentsPage() {
                     de pagar
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                  <div className="text-left sm:text-right">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground">
                       Total a pagar
                     </p>
@@ -522,7 +522,7 @@ export function NominaPaymentsPage() {
                   <Button
                     onClick={() => setIsPayConfirmOpen(true)}
                     disabled={paying || selectedRows.length === 0}
-                    className="gap-2"
+                    className="w-full gap-2 sm:w-auto"
                   >
                     {paying && <Loader2 className="h-4 w-4 animate-spin" />}
                     Pagar nómina ({selectedRows.length})

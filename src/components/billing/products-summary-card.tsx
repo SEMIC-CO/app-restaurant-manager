@@ -30,16 +30,16 @@ export function ProductsSummaryCard({ products }: ProductsSummaryCardProps) {
         <table className="w-full">
           <thead className="border-y bg-muted/50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground">
+              <th className="px-4 py-3 sm:px-6 text-left text-xs font-medium uppercase text-muted-foreground">
                 Producto
               </th>
-              <th className="px-6 py-3 text-center text-xs font-medium uppercase text-muted-foreground">
+              <th className="px-4 py-3 sm:px-6 text-center text-xs font-medium uppercase text-muted-foreground">
                 Cant.
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase text-muted-foreground">
+              <th className="px-4 py-3 sm:px-6 text-right text-xs font-medium uppercase text-muted-foreground">
                 Unitario
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase text-muted-foreground">
+              <th className="px-4 py-3 sm:px-6 text-right text-xs font-medium uppercase text-muted-foreground">
                 Subtotal
               </th>
             </tr>
@@ -47,17 +47,17 @@ export function ProductsSummaryCard({ products }: ProductsSummaryCardProps) {
           <tbody className="divide-y">
             {products.map((product) => (
               <tr key={product.id}>
-                <td className="px-6 py-4">
-                  <p className="font-medium">{product.name}</p>
+                <td className="min-w-0 px-4 py-4 sm:px-6">
+                  <p className="break-words font-medium">{product.name}</p>
                   <p className="text-sm text-muted-foreground">{product.description}</p>
                 </td>
-                <td className="px-6 py-4 text-center">
+                <td className="px-4 py-4 sm:px-6 text-center">
                   {product.quantity}
                 </td>
-                <td className="px-6 py-4 text-right text-muted-foreground">
+                <td className="px-4 py-4 sm:px-6 text-right text-muted-foreground">
                   {formatCurrency(product.unitPrice)}
                 </td>
-                <td className="px-6 py-4 text-right font-semibold">
+                <td className="px-4 py-4 sm:px-6 text-right font-semibold">
                   {formatCurrency(product.subtotal)}
                 </td>
               </tr>

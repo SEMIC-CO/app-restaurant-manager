@@ -304,7 +304,7 @@ export function InventoryMovementFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-lg overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>
@@ -402,7 +402,7 @@ export function InventoryMovementFormDialog({
                 : 'Este movimiento entra al kardex y no se puede editar ni borrar: si queda mal digitado, se corrige con «Corregir» o se anula.'}
             </p>
 
-            <DialogFooter>
+            <DialogFooter className="gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -689,7 +689,7 @@ export function InventoryMovementFormDialog({
               )}
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="gap-2">
               <Button
                 type="button"
                 variant="outline"

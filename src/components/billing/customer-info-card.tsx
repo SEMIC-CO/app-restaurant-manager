@@ -38,15 +38,15 @@ export function CustomerInfoCard({ customer, onEdit }: CustomerInfoCardProps) {
 
       <div className="flex items-start gap-4">
         {/* Avatar */}
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted text-2xl">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-muted text-2xl">
           👤
         </div>
 
         {/* Info */}
-        <div className="flex-1 space-y-2">
+        <div className="min-w-0 flex-1 space-y-2">
           <h4 className="text-lg font-semibold">{customer.name}</h4>
           
-          <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+          <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2 [&_span]:break-words">
             <div className="flex items-center gap-2">
               <User className="h-4 w-4" />
               <span>ID: {customer.rut}</span>

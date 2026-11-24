@@ -84,7 +84,7 @@ export function InventoryCategoryFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle>
             {entity ? 'Editar Categoría' : 'Nueva Categoría de Inventario'}
@@ -124,7 +124,7 @@ export function InventoryCategoryFormDialog({
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button
               type="button"
               variant="outline"
