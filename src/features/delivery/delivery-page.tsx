@@ -11,7 +11,7 @@ import { ConfigLayout } from '@/app/layout';
 import { ConfigSidebar } from '@/components/common';
 import { toast, useOrderEvents } from '@/hooks';
 import { orderService, productService } from '@/services';
-import { mapApiOrder, toISODate } from '@/utils';
+import { localDayUtcRange, mapApiOrder, toISODate } from '@/utils';
 import type { Order, OrderStatus } from '@/types';
 
 /** Filtro de la vista del día: todos los pedidos o un estado en particular. */
@@ -48,9 +48,9 @@ export function DeliveryPage() {
   const load = useCallback(async () => {
     try {
       // Un solo listado: TODOS los pedidos del día (sin filtro de estado).
-      const today = toISODate();
+      const { dateFrom, dateTo } = localDayUtcRange();
       const [ordersResp, products] = await Promise.all([
-        orderService.list({ limit: 100, dateFrom: today, dateTo: today }),
+        orderService.list({ limit: 100, dateFrom, dateTo }),
         productService.listAll(),
       ]);
 

@@ -11,7 +11,7 @@ import {
 import { toast, useMediaQuery } from '@/hooks';
 import { orderService, productService } from '@/services';
 import { useOrdersStore } from '@/store';
-import { mapApiOrder, toISODate } from '@/utils';
+import { localDayUtcRange, mapApiOrder } from '@/utils';
 import type { Order, OrderType, ApiResponse } from '@/types';
 
 type TypeFilter = 'todas' | OrderType;
@@ -85,9 +85,9 @@ export function OrdersPage() {
     void (async () => {
       try {
         // Los filtros de la vista operan solo sobre los pedidos del día actual.
-        const today = toISODate();
+        const { dateFrom, dateTo } = localDayUtcRange();
         const [ordersResp, products] = await Promise.all([
-          orderService.list({ limit: 100, dateFrom: today, dateTo: today }),
+          orderService.list({ limit: 100, dateFrom, dateTo }),
           productService.listAll(),
         ]);
         if (!active) return;

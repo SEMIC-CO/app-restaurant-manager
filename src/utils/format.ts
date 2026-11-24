@@ -20,6 +20,22 @@ export function toISODate(date: Date = new Date()): string {
 }
 
 /**
+ * Límites UTC del día LOCAL para filtros contra columnas `timestamp` de la API.
+ *
+ * El backend guarda `order_datetime` en UTC, así que enviar solo `AAAA-MM-DD`
+ * local deja fuera los pedidos creados de noche en zonas con offset negativo
+ * (Colombia UTC-5: las 20:00 local ya son las 01:00 UTC del día siguiente).
+ * Aquí se convierten las medianoches locales a sus equivalentes UTC.
+ */
+export function localDayUtcRange(
+  date: Date = new Date(),
+): { dateFrom: string; dateTo: string } {
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const end = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+  return { dateFrom: start.toISOString(), dateTo: end.toISOString() };
+}
+
+/**
  * Rango del MES EN CURSO (día 1 → último día) en `YYYY-MM-DD` local.
  * Período por defecto para "todos los pagos del mes" (nómina, historial).
  * Se recalcula en cada llamada por si la pestaña queda abierta al cambiar de mes.

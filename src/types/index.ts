@@ -642,7 +642,9 @@ export interface ListOrdersParams {
   limit?: number;
   status?: ApiOrderStatus;
   search?: string;
+  /** ISO UTC (p. ej. `2026-11-23T05:00:00.000Z`) o `YYYY-MM-DD` heredado. */
   dateFrom?: string;
+  /** ISO UTC (exclusivo) o `YYYY-MM-DD` heredado. */
   dateTo?: string;
 }
 

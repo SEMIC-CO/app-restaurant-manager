@@ -8,7 +8,7 @@ import type { Order } from "@/types";
 import { ConfigSidebar, AppHeader } from "@/components/common";
 import { toast, useOrderEvents } from "@/hooks";
 import { orderService, productService } from "@/services";
-import { mapApiOrder, toISODate } from "@/utils";
+import { localDayUtcRange, mapApiOrder } from "@/utils";
 
 function apiErrorMessage(resp: { code: number; msg: string; data: unknown }, fallback: string) {
   const data: unknown = resp.data;
@@ -37,7 +37,7 @@ export function KitchenPage() {
   const load = useCallback(async () => {
     try {
       // Cola e histórico solo del día actual (filtros dateFrom/dateTo).
-      const today = toISODate();
+      const { dateFrom, dateTo } = localDayUtcRange();
       const [
         pendingResp,
         preparingResp,
@@ -46,11 +46,11 @@ export function KitchenPage() {
         paidResp,
         products,
       ] = await Promise.all([
-        orderService.list({ limit: 100, status: "pending", dateFrom: today, dateTo: today }),
-        orderService.list({ limit: 100, status: "preparing", dateFrom: today, dateTo: today }),
-        orderService.list({ limit: 100, status: "ready", dateFrom: today, dateTo: today }),
-        orderService.list({ limit: 100, status: "delivered", dateFrom: today, dateTo: today }),
-        orderService.list({ limit: 100, status: "paid", dateFrom: today, dateTo: today }),
+        orderService.list({ limit: 100, status: "pending", dateFrom, dateTo }),
+        orderService.list({ limit: 100, status: "preparing", dateFrom, dateTo }),
+        orderService.list({ limit: 100, status: "ready", dateFrom, dateTo }),
+        orderService.list({ limit: 100, status: "delivered", dateFrom, dateTo }),
+        orderService.list({ limit: 100, status: "paid", dateFrom, dateTo }),
         productService.listAll(),
       ]);
 
