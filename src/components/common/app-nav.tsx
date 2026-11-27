@@ -13,6 +13,13 @@ interface AppNavProps {
 const SECTION_ORDER = ['PRINCIPAL', 'CONFIGURACIÓN', 'SISTEMA'];
 const DEFAULT_SECTION = 'PRINCIPAL';
 
+/**
+ * Módulos que se abren en pestaña nueva en vez de reemplazar la actual.
+ * La vista cliente es la segunda pantalla de Caja: debe quedar abierta en
+ * otro monitor/pestaña mientras se cobra en la principal.
+ */
+const NEW_TAB_PATHS = new Set(['/caja/vista-cliente']);
+
 function sectionRank(section: string) {
   const index = SECTION_ORDER.indexOf(section);
   return index === -1 ? SECTION_ORDER.length : index;
@@ -84,6 +91,12 @@ export function AppNav({ onNavigate }: AppNavProps) {
                 <NavLink
                   to={menu.path}
                   end={menu.path === '/'}
+                  target={NEW_TAB_PATHS.has(menu.path) ? '_blank' : undefined}
+                  rel={
+                    NEW_TAB_PATHS.has(menu.path)
+                      ? 'noopener noreferrer'
+                      : undefined
+                  }
                   onClick={onNavigate}
                   className={({ isActive }) => linkClass(isActive)}
                 >

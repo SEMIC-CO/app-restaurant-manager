@@ -14,7 +14,6 @@ import {
 } from "@/components/pos";
 import { toast, useFloorTables, useMediaQuery, useOrderEvents } from "@/hooks";
 import {
-  openCustomerDisplay,
   orderService,
   productService,
   publishCustomerDisplay,
@@ -394,23 +393,15 @@ export function POSPage() {
                     activeView={view}
                     onViewChange={setView}
                   />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2"
-                    onClick={() => {
-                      if (!openCustomerDisplay()) {
-                        toast({
-                          variant: "warning",
-                          title: "No se pudo abrir la vista cliente",
-                          description:
-                            "Permite ventanas emergentes para mostrar la segunda pantalla.",
-                        });
-                      }
-                    }}
-                  >
-                    <MonitorPlay className="h-4 w-4" />
-                    Vista cliente
+                  <Button asChild variant="outline" size="sm" className="gap-2">
+                    <a
+                      href="/caja/vista-cliente"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <MonitorPlay className="h-4 w-4" />
+                      Vista cliente
+                    </a>
                   </Button>
                 </div>
               </div>

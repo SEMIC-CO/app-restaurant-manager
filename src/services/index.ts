@@ -25,7 +25,6 @@ export {
   publishCustomerDisplay,
   subscribeCustomerDisplay,
   announceCustomerDisplayReady,
-  openCustomerDisplay,
 } from './customer-display';
 export type {
   CustomerDisplaySnapshot,

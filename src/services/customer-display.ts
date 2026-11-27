@@ -69,11 +69,3 @@ export function announceCustomerDisplayReady(headquarterId: number | null): void
   channel.postMessage(message);
   channel.close();
 }
-
-/** Abre la vista cliente en una pestaña nueva. `false` si el navegador la bloqueó. */
-export function openCustomerDisplay(): boolean {
-  const win = window.open('/caja/vista-cliente', '_blank');
-  if (!win) return false;
-  win.focus();
-  return true;
-}
