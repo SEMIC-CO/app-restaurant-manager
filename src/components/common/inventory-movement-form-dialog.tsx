@@ -22,8 +22,10 @@ import {
 } from '@/components/ui';
 import { formatCurrency } from '@/utils';
 import { cn } from '@/lib/utils';
+import { inventoryMeasurementUnitService } from '@/services';
 import type {
   ApiInventoryItem,
+  ApiMeasurementUnit,
   InventoryMovementType,
 } from '@/types';
 import {
@@ -36,15 +38,31 @@ const inventoryMovementSchema = z
   .object({
     inventoryItemId: z.string().min(1, 'Selecciona un artículo'),
     movementType: z.enum([
+      'INITIAL_STOCK',
       'ENTRY',
       'EXIT',
       'ADJUSTMENT_IN',
       'ADJUSTMENT_OUT',
+      'RETURN_EXIT',
+      'WASTE',
     ] satisfies readonly InventoryMovementType[]),
+    /**
+     * Unidad (tipo de medida) de la cantidad (`measurement_units.id` como
+     * string). Vacío = sin unidad explícita.
+     */
+    unitId: z.string(),
     /** Siempre positiva (check de la BD): el sentido lo da el tipo. */
     quantity: z
       .number('Ingresa la cantidad')
       .positive('La cantidad debe ser mayor a 0'),
+    /**
+     * Unidades por cada elemento de «cantidad» (1 paquete × 20 = 20
+     * unidades). El producto es lo que mueve el stock. Por defecto 1 (la
+     * cantidad ya está en unidades sueltas).
+     */
+    conversionFactor: z
+      .number('Ingresa las unidades por cantidad')
+      .positive('Las unidades deben ser mayor a 0'),
     /**
      * Costo TOTAL del lote (entrada): el backend deriva de aquí el costo
      * unitario. Es lo que permite registrar una canasta de30 a $30.000.
@@ -74,13 +92,14 @@ const inventoryMovementSchema = z
 export type InventoryMovementFormData = z.infer<typeof inventoryMovementSchema>;
 
 /**
- * Datos ya convertidos para enviar al servicio: `inventoryItemId` pasa de
- * string (select) a `number`.
+ * Datos ya convertidos para enviar al servicio: `inventoryItemId` y `unitId`
+ * pasan de string (select) a `number | undefined`. `conversionFactor` viaja
+ * tal cual (cantidad × factor = total de unidades que mueve el stock).
  */
 export type InventoryMovementFormSubmit = Omit<
   InventoryMovementFormData,
-  'inventoryItemId'
-> & { inventoryItemId: number };
+  'inventoryItemId' | 'unitId'
+> & { inventoryItemId: number; unitId?: number };
 
 /**
  * Movimiento que se está corrigiendo. La corrección **anula el original** y
@@ -94,6 +113,12 @@ export interface InventoryMovementCorrection {
   /** Tipo original: la corrección se registra con el mismo tipo. */
   movementType: InventoryMovementType;
   quantity: number;
+  /** Unidad registrada (`measurement_units.id`); `null` = sin unidad explícita. */
+  unitId: number | null;
+  /** Factor registrado (unidades por cada elemento de `quantity`). */
+  conversionFactor: number | null;
+  /** Total de unidades base que movió el original (la anulación lo devuelve). */
+  baseQuantity: number | null;
   reference: string | null;
   /** Costo unitario registrado, para precargar el total del lote. */
   unitCost: number | null;
@@ -116,33 +141,44 @@ function toSubmit(data: InventoryMovementFormData): InventoryMovementFormSubmit 
   return {
     ...data,
     inventoryItemId: Number(data.inventoryItemId),
+    unitId: data.unitId ? Number(data.unitId) : undefined,
     reference: data.reference.trim(),
     reason: data.reason.trim(),
   };
 }
 
 /**
- * Stock que resultaría de un movimiento. En modo corrección el original se
- * **anula** antes de registrar este, así que su efecto sale del cálculo: el
- * punto de partida es el stock actual más lo que devuelve esa anulación.
+ * Stock que resultaría de un movimiento. `baseQuantity` va ya convertido a
+ * unidad base (cantidad × factor): el stock siempre se compara en base.
+ * En modo corrección el original se **anula** antes de registrar este, así que
+ * su efecto sale del cálculo: el punto de partida es el stock actual más lo
+ * que devuelve esa anulación.
  */
 function resolveStock(
   item: ApiInventoryItem | undefined,
   type: InventoryMovementType,
-  quantity: number,
+  baseQuantity: number,
   correction: InventoryMovementCorrection | null | undefined,
 ): { base: number | null; result: number | null } {
-  if (!item?.trackInventory || quantity <= 0) {
+  if (!item?.trackInventory || baseQuantity <= 0) {
     return { base: null, result: null };
   }
   const current = item.currentStock ?? 0;
+  // Lo que devuelve la anulación son las unidades base que movió el original
+  // (`baseQuantity`); `quantity` solo es la cantidad registrada.
+  const undone = correction?.baseQuantity ?? correction?.quantity ?? 0;
   const base = correction
-    ? current +
-      (addsStock(correction.movementType)
-        ? -correction.quantity
-        : correction.quantity)
+    ? current + (addsStock(correction.movementType) ? -undone : undone)
     : current;
-  return { base, result: base + (addsStock(type) ? quantity : -quantity) };
+  return {
+    base,
+    result: base + (addsStock(type) ? baseQuantity : -baseQuantity),
+  };
+}
+
+/** Cantidad sin ceros colgantes de la conversión (p. ej. 2 × 1.5 → 3). */
+function trimQuantity(value: number): number {
+  return Number(value.toFixed(4));
 }
 
 /**
@@ -169,18 +205,26 @@ export function InventoryMovementFormDialog({
     React.useState<InventoryMovementFormData | null>(null);
   const [confirming, setConfirming] = React.useState(false);
 
+  /** Catálogo de unidades de medida (una vez): resuelve la unidad base. */
+  const [measurementUnits, setMeasurementUnits] = React.useState<
+    ApiMeasurementUnit[]
+  >([]);
+
   const {
     register,
     handleSubmit,
     control,
     formState: { errors, isSubmitting },
     reset,
+    setValue,
   } = useForm<InventoryMovementFormData>({
     resolver: zodResolver(inventoryMovementSchema),
     defaultValues: {
       inventoryItemId: '',
       movementType: 'ENTRY',
+      unitId: '',
       quantity: 1,
+      conversionFactor: 1,
       totalCost: undefined,
       unitPrice: undefined,
       reference: '',
@@ -198,13 +242,19 @@ export function InventoryMovementFormDialog({
         ? {
             inventoryItemId: String(correction.inventoryItemId),
             movementType: correction.movementType,
+            unitId:
+              correction.unitId != null ? String(correction.unitId) : '',
             quantity: correction.quantity,
+            conversionFactor: correction.conversionFactor ?? 1,
             // El total que se había registrado: el nuevo se recalcula sobre
-            // la cantidad corregida (unitCost × cantidad).
+            // el total de unidades (unitCost × total unidades).
             totalCost:
               correction.unitCost !== null && correction.quantity > 0
                 ? Number(
-                    (correction.unitCost * correction.quantity).toFixed(2),
+                    (
+                      correction.unitCost *
+                      (correction.baseQuantity ?? correction.quantity)
+                    ).toFixed(2),
                   )
                 : undefined,
             unitPrice: correction.unitPrice ?? undefined,
@@ -214,7 +264,9 @@ export function InventoryMovementFormDialog({
         : {
             inventoryItemId: '',
             movementType: 'ENTRY',
+            unitId: '',
             quantity: 1,
+            conversionFactor: 1,
             totalCost: undefined,
             unitPrice: undefined,
             reference: '',
@@ -223,37 +275,80 @@ export function InventoryMovementFormDialog({
     );
   }, [open, reset, correction]);
 
+  React.useEffect(() => {
+    void (async () => {
+      try {
+        setMeasurementUnits(await inventoryMeasurementUnitService.getAll());
+      } catch {
+        /* sin catálogo las etiquetas caen a `#id`; el formulario sigue útil */
+      }
+    })();
+  }, []);
+
   const selectedItemId = useWatch({ control, name: 'inventoryItemId' });
   const movementType = useWatch({ control, name: 'movementType' });
+  const watchedUnitId = useWatch({ control, name: 'unitId' });
   const quantity = useWatch({ control, name: 'quantity' }) || 0;
   const totalCost = useWatch({ control, name: 'totalCost' });
   const selectedItem = items.find(
     (item) => String(item.id) === selectedItemId,
   );
-  const isExit =
-    movementType === 'EXIT' || movementType === 'ADJUSTMENT_OUT';
+
+  /** Unidad base del artículo resuelta en el catálogo (`null` si no está). */
+  const baseCatalogUnit =
+    selectedItem?.baseUnitId != null
+      ? (measurementUnits.find(
+          (unit) => unit.id === selectedItem.baseUnitId,
+        ) ?? null)
+      : null;
+  /** Abreviatura de la unidad base para textos de stock/conversión. */
+  const baseUnitAbbrev =
+    baseCatalogUnit?.abbreviation ?? selectedItem?.unitOfMeasure ?? '';
+
+  /**
+   * Unidad (tipo de medida) elegida para la cantidad: su abreviatura va
+   * entre paréntesis junto a «Cantidad».
+   */
+  const selectedUnitAbbrev =
+    measurementUnits.find((unit) => String(unit.id) === watchedUnitId)
+      ?.abbreviation ?? '';
+
+  /** Unidades por cada elemento de «cantidad» (1 paquete × 20 = 20). */
+  const conversionFactor = useWatch({ control, name: 'conversionFactor' }) || 1;
+  /** Total de unidades base: es lo que se suma o descuenta del stock. */
+  const baseQuantity = quantity > 0 ? quantity * conversionFactor : 0;
+
+  // Al elegir artículo (registro normal) la unidad por defecto es su unidad
+  // base. En corrección manda la unidad precargada del original.
+  React.useEffect(() => {
+    if (!open || correction || !selectedItemId) return;
+    const item = items.find((candidate) => String(candidate.id) === selectedItemId);
+    setValue('unitId', item?.baseUnitId != null ? String(item.baseUnitId) : '');
+  }, [open, correction, selectedItemId, items, setValue]);
+
+  const isExit = !addsStock(movementType);
   const isEntry = movementType === 'ENTRY';
 
-  /** Costo unitario resultante (total ÷ cantidad) para mostrarlo en vivo. */
+  /** Costo unitario resultante (total ÷ total de unidades) en vivo. */
   const derivedUnitCost =
-    totalCost !== undefined && totalCost > 0 && quantity > 0
-      ? Number((totalCost / quantity).toFixed(2))
+    totalCost !== undefined && totalCost > 0 && baseQuantity > 0
+      ? Number((totalCost / baseQuantity).toFixed(2))
       : undefined;
 
   // ===== Stock resultante (evita mandar lo que el backend rechazará) =====
   const rawStock =
-    selectedItem?.trackInventory && quantity > 0
+    selectedItem?.trackInventory && baseQuantity > 0
       ? (selectedItem.currentStock ?? 0)
       : null;
   const { base: baseStock, result: resultingStock } = resolveStock(
     selectedItem,
     movementType,
-    quantity,
+    baseQuantity,
     correction,
   );
   const stockError =
     resultingStock !== null && resultingStock < 0
-      ? `No alcanza: el stock no puede quedar en ${resultingStock}. Ajusta la cantidad.`
+      ? `No alcanza: el stock no puede quedar en ${trimQuantity(resultingStock)}. Ajusta la cantidad.`
       : null;
 
   /** Paso 1 → pasa al resumen si todo cuadra. */
@@ -281,9 +376,17 @@ export function InventoryMovementFormDialog({
     (item) => String(item.id) === validated?.inventoryItemId,
   );
   const summaryQuantity = validated?.quantity ?? 0;
-  const summarySubtracts =
-    validated?.movementType === 'EXIT' ||
-    validated?.movementType === 'ADJUSTMENT_OUT';
+  const summarySubtracts = validated
+    ? !addsStock(validated.movementType)
+    : false;
+  /** Unidad en la que se registró la cantidad del resumen. */
+  const summaryUnitAbbrev =
+    (validated?.unitId &&
+      measurementUnits.find((unit) => unit.id === Number(validated.unitId))
+        ?.abbreviation) ||
+    baseUnitAbbrev;
+  const summaryFactor = validated?.conversionFactor ?? 1;
+  const summaryBaseQuantity = trimQuantity(summaryQuantity * summaryFactor);
   const summaryRawStock = summaryItem?.trackInventory
     ? (summaryItem.currentStock ?? 0)
     : null;
@@ -291,7 +394,7 @@ export function InventoryMovementFormDialog({
     ? resolveStock(
         summaryItem,
         validated.movementType,
-        summaryQuantity,
+        summaryQuantity * summaryFactor,
         correction,
       )
     : { base: null, result: null };
@@ -310,7 +413,7 @@ export function InventoryMovementFormDialog({
           <DialogDescription>
             {step === 'confirm'
               ? 'Revisa el resumen: al confirmar, el stock cambia de inmediato.'
-              : 'La entrada y el ajuste positivo suman stock; la salida y el ajuste negativo lo restan'}
+              : 'Stock inicial, entrada y ajuste positivo suman stock; salida, ajuste negativo, devolución y merma lo restan'}
           </DialogDescription>
         </DialogHeader>
 
@@ -333,7 +436,14 @@ export function InventoryMovementFormDialog({
                 <span className="text-muted-foreground">Cantidad</span>
                 <span className="text-right font-medium tabular-nums">
                   {summarySubtracts ? '−' : '+'}
-                  {summaryQuantity}
+                  {summaryQuantity} {summaryUnitAbbrev}
+                  {summaryFactor !== 1 && (
+                    <span className="text-muted-foreground">
+                      {' '}
+                      × {summaryFactor} = {summaryBaseQuantity}{' '}
+                      {baseUnitAbbrev}
+                    </span>
+                  )}
                 </span>
               </div>
               {summaryResultingStock !== null && (
@@ -345,11 +455,11 @@ export function InventoryMovementFormDialog({
                     {correction && summaryBaseStock !== null
                       ? `${summaryRawStock} → ${summaryBaseStock} → `
                       : `${summaryRawStock} → `}
-                    {summaryResultingStock} {summaryItem?.unitOfMeasure}
+                    {trimQuantity(summaryResultingStock)} {baseUnitAbbrev}
                   </span>
                 </div>
               )}
-              {validated.movementType === 'ENTRY' &&
+              {addsStock(validated.movementType) &&
                 validated.totalCost !== undefined && (
                   <div className="flex justify-between gap-4">
                     <span className="text-muted-foreground">
@@ -357,17 +467,18 @@ export function InventoryMovementFormDialog({
                     </span>
                     <span className="text-right font-medium">
                       {formatCurrency(validated.totalCost)}
-                      {summaryQuantity > 0 && (
+                      {summaryBaseQuantity > 0 && (
                         <span className="text-muted-foreground">
                           {' '}
-                          ({formatCurrency(validated.totalCost / summaryQuantity)}/u)
+                          ({formatCurrency(
+                            validated.totalCost / summaryBaseQuantity,
+                          )}/u)
                         </span>
                       )}
                     </span>
                   </div>
                 )}
-              {(validated.movementType === 'EXIT' ||
-                validated.movementType === 'ADJUSTMENT_OUT') &&
+              {!addsStock(validated.movementType) &&
                 validated.unitPrice !== undefined && (
                   <div className="flex justify-between gap-4">
                     <span className="text-muted-foreground">
@@ -468,7 +579,7 @@ export function InventoryMovementFormDialog({
                   Stock actual:{' '}
                   <span className="font-medium text-foreground">
                     {selectedItem.trackInventory
-                      ? `${selectedItem.currentStock ?? 0} ${selectedItem.unitOfMeasure}`
+                      ? `${selectedItem.currentStock ?? 0} ${baseUnitAbbrev}`
                       : 'sin control de stock'}
                   </span>
                 </p>
@@ -507,7 +618,36 @@ export function InventoryMovementFormDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="inventory-movement-quantity">Cantidad *</Label>
+                <Label>Unidad</Label>
+                <Controller
+                  control={control}
+                  name="unitId"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Unidad base" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {measurementUnits
+                          .filter((unit) => unit.isActive)
+                          .map((unit) => (
+                            <SelectItem key={unit.id} value={String(unit.id)}>
+                              {unit.name} ({unit.abbreviation})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="inventory-movement-quantity">
+                  Cantidad{selectedUnitAbbrev ? ` (${selectedUnitAbbrev})` : ''}{' '}
+                  *
+                </Label>
                 <Input
                   id="inventory-movement-quantity"
                   type="number"
@@ -522,10 +662,45 @@ export function InventoryMovementFormDialog({
                   </p>
                 )}
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="inventory-movement-conversion-factor">
+                  Unidades
+                </Label>
+                <Input
+                  id="inventory-movement-conversion-factor"
+                  type="number"
+                  min="0.0001"
+                  step="any"
+                  placeholder="1"
+                  {...register('conversionFactor', { valueAsNumber: true })}
+                />
+                {errors.conversionFactor && (
+                  <p className="text-xs text-red-500">
+                    {errors.conversionFactor.message}
+                  </p>
+                )}
+              </div>
             </div>
 
-            {/* Stock resultante: el motivo más común de un error de digitación
-                es quedarse sin stock (o en negativo, que el backend rechaza). */}
+            <div className="space-y-2">
+              <Label htmlFor="inventory-movement-total-units">
+                Total unidades{baseUnitAbbrev ? ` (${baseUnitAbbrev})` : ''}
+              </Label>
+              <Input
+                id="inventory-movement-total-units"
+                disabled
+                value={trimQuantity(baseQuantity)}
+                className="bg-muted/50 font-medium tabular-nums"
+              />
+              <p className="text-xs text-muted-foreground">
+                Cantidad × unidades: es lo que se suma o descuenta del stock.
+              </p>
+            </div>
+
+            {/* Stock resultante en unidades base: el motivo más común de un
+                error de digitación es quedarse sin stock (o en negativo, que
+                el backend rechaza). */}
             {resultingStock !== null && (
               <p
                 className={cn(
@@ -538,27 +713,27 @@ export function InventoryMovementFormDialog({
                     <>
                       Stock actual{' '}
                       <span className="font-medium text-foreground">
-                        {rawStock} {selectedItem?.unitOfMeasure}
+                        {rawStock} {baseUnitAbbrev}
                       </span>
                       {' → al anular el #'}
                       {correction.movementId}:{' '}
                       <span className="font-medium text-foreground">
-                        {baseStock} {selectedItem?.unitOfMeasure}
+                        {baseStock} {baseUnitAbbrev}
                       </span>
                       {' → quedará en '}
                       <span className="font-medium text-foreground">
-                        {resultingStock} {selectedItem?.unitOfMeasure}
+                        {trimQuantity(resultingStock)} {baseUnitAbbrev}
                       </span>
                     </>
                   ) : (
                     <>
                       Stock actual{' '}
                       <span className="font-medium text-foreground">
-                        {rawStock} {selectedItem?.unitOfMeasure}
+                        {rawStock} {baseUnitAbbrev}
                       </span>
-                      {' → quedará en '}
+                      {' → '}
                       <span className="font-medium text-foreground">
-                        {resultingStock} {selectedItem?.unitOfMeasure}
+                        {trimQuantity(resultingStock)} {baseUnitAbbrev}
                       </span>
                     </>
                   ))}
@@ -640,7 +815,7 @@ export function InventoryMovementFormDialog({
                       <span className="font-medium text-foreground">
                         {formatCurrency(derivedUnitCost)}
                       </span>{' '}
-                      (total ÷ cantidad)
+                      (total ÷ total unidades)
                     </>
                   ) : isEntry ? (
                     'Lo que costó el lote completo. En una canasta de30 gaseosas a $30.000 va el total, no el unitario.'

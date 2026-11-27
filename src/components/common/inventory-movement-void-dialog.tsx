@@ -13,7 +13,7 @@ import {
   Label,
   Textarea,
 } from '@/components/ui';
-import { INVENTORY_MOVEMENT_LABELS } from './inventory-labels';
+import { addsStock, INVENTORY_MOVEMENT_LABELS } from './inventory-labels';
 import type { ApiInventoryMovement } from '@/types';
 
 const voidReasonSchema = z.object({
@@ -72,7 +72,10 @@ export function InventoryMovementVoidDialog({
 
   if (!movement) return null;
 
-  const isEntry = movement.movementType === 'ENTRY';
+  /** Entrada y stock inicial alimentan el costo vigente (promedio ponderado). */
+  const feedsCost =
+    movement.movementType === 'ENTRY' ||
+    movement.movementType === 'INITIAL_STOCK';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -101,10 +104,7 @@ export function InventoryMovementVoidDialog({
           <div className="flex justify-between gap-4">
             <span className="text-muted-foreground">Cantidad</span>
             <span className="text-right font-medium tabular-nums">
-              {movement.movementType === 'ENTRY' ||
-              movement.movementType === 'ADJUSTMENT_IN'
-                ? '+'
-                : '−'}
+              {addsStock(movement.movementType) ? '+' : '−'}
               {movement.quantity}
             </span>
           </div>
@@ -126,8 +126,8 @@ export function InventoryMovementVoidDialog({
               {...register('reason')}
             />
             <p className="text-xs text-muted-foreground">
-              {isEntry
-                ? 'Al anular una entrada, el costo vigente del artículo se recalcula al instante con sus entradas restantes.'
+              {feedsCost
+                ? 'Al anular una entrada o un stock inicial, el costo vigente del artículo se recalcula al instante con sus entradas restantes.'
                 : 'El stock de la sede se recalcula al instante con el resto de los movimientos.'}
             </p>
             {errors.reason && (

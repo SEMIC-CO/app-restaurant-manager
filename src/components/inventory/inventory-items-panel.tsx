@@ -22,15 +22,22 @@ import {
 } from '@/components/ui';
 import {
   InventoryItemFormDialog,
-  inventoryUnitLabel,
   type InventoryItemFormSubmit,
 } from '@/components/common';
 import { toast } from '@/hooks';
-import { inventoryCategoryService, inventoryItemService } from '@/services';
+import {
+  inventoryCategoryService,
+  inventoryItemService,
+  inventoryMeasurementUnitService,
+} from '@/services';
 import { formatCurrency } from '@/utils';
 import { cn } from '@/lib/utils';
 import { apiErrorMessage } from './api-error-message';
-import type { ApiInventoryCategory, ApiInventoryItem } from '@/types';
+import type {
+  ApiInventoryCategory,
+  ApiInventoryItem,
+  ApiMeasurementUnit,
+} from '@/types';
 
 const PAGE_SIZE = 10;
 
@@ -46,6 +53,9 @@ export function InventoryItemsPanel() {
   const [categories, setCategories] = React.useState<ApiInventoryCategory[]>(
     [],
   );
+  const [measurementUnits, setMeasurementUnits] = React.useState<
+    ApiMeasurementUnit[]
+  >([]);
   const [total, setTotal] = React.useState(0);
   const [totalPages, setTotalPages] = React.useState(1);
   const [page, setPage] = React.useState(1);
@@ -69,6 +79,17 @@ export function InventoryItemsPanel() {
         if (resp.code === 200) setCategories(resp.data.items);
       } catch {
         /* el listado principal sigue funcionando sin categorías */
+      }
+    })();
+  }, []);
+
+  // Catálogo de unidades de medida (una vez): resuelve baseUnitId → abreviatura
+  React.useEffect(() => {
+    void (async () => {
+      try {
+        setMeasurementUnits(await inventoryMeasurementUnitService.getAll());
+      } catch {
+        /* el listado principal sigue funcionando sin unidades */
       }
     })();
   }, []);
@@ -157,10 +178,15 @@ export function InventoryItemsPanel() {
     const isEdit = Boolean(editingItem);
     const payload = {
       name: data.name,
-      code: data.code,
+      // Sin `code`: lo genera el backend al crear; en edición no se envía.
       description: data.description,
       inventoryCategoryId: data.inventoryCategoryId,
-      unitOfMeasure: data.unitOfMeasure,
+      baseUnitId: data.baseUnitId,
+      // Vacío viaja como '' para que el backend lo borre en la edición.
+      barcode: data.barcode,
+      minimumStock: data.minimumStock,
+      maximumStock: data.maximumStock,
+      allowMenuConfig: data.allowMenuConfig,
       trackInventory: data.trackInventory,
       isActive: data.isActive,
     };
@@ -175,7 +201,7 @@ export function InventoryItemsPanel() {
         title: isEdit ? '✅ Artículo actualizado' : '✅ Artículo creado',
         description: isEdit
           ? 'El artículo se ha actualizado correctamente.'
-          : `El artículo "${resp.data.name}" se ha creado correctamente.`,
+          : `El artículo "${resp.data.name}" se ha creado con el código ${resp.data.code ?? '—'}.`,
       });
       if (!isEdit) {
         setPage(1);
@@ -255,6 +281,17 @@ export function InventoryItemsPanel() {
         '—')
       : 'Sin categoría';
 
+  /** Abreviatura de la unidad base del catálogo (`—` si no está asignada). */
+  const unitAbbreviation = (baseUnitId: number | null) =>
+    baseUnitId != null
+      ? (measurementUnits.find((unit) => unit.id === baseUnitId)?.abbreviation ??
+        '—')
+      : '—';
+
+  /** Mín/Máx compacto: `2 / 20`, `2 / —` si no hay tope. */
+  const minMaxLabel = (item: ApiInventoryItem) =>
+    `${item.minimumStock} / ${item.maximumStock ?? '—'}`;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -314,16 +351,19 @@ export function InventoryItemsPanel() {
                     Artículo
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Categoría
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Unidad
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Costo
+                    Unidad base
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Stock
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Mín/Máx
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Código de barras
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Costo
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Estado
@@ -336,13 +376,13 @@ export function InventoryItemsPanel() {
               <tbody className="divide-y">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-sm text-muted-foreground">
+                    <td colSpan={8} className="px-6 py-12 text-center text-sm text-muted-foreground">
                       Cargando artículos...
                     </td>
                   </tr>
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center">
+                    <td colSpan={8} className="px-6 py-12 text-center">
                       <span className="text-4xl">📦</span>
                       <p className="mt-3 font-medium">
                         {hasFilters
@@ -360,19 +400,23 @@ export function InventoryItemsPanel() {
                   items.map((item) => (
                     <tr key={item.id} className="hover:bg-muted/50">
                       <td className="px-4 py-4">
-                        <span className="font-medium block">{item.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {item.code ? `Código: ${item.code}` : 'Sin código'}
+                        <span className="flex items-center gap-1.5 font-medium">
+                          {item.name}
+                          {item.allowMenuConfig && (
+                            <Badge
+                              variant="secondary"
+                              className="bg-blue-500/10 text-[10px] uppercase text-blue-700 dark:text-blue-400"
+                            >
+                              Menú
+                            </Badge>
+                          )}
+                        </span>
+                        <span className="block text-xs text-muted-foreground">
+                          {categoryName(item.inventoryCategoryId)}
                         </span>
                       </td>
                       <td className="px-4 py-4 text-sm">
-                        {categoryName(item.inventoryCategoryId)}
-                      </td>
-                      <td className="px-4 py-4 text-sm">
-                        {inventoryUnitLabel(item.unitOfMeasure)}
-                      </td>
-                      <td className="px-4 py-4 text-right text-sm">
-                        {formatCurrency(item.costPrice)}
+                        {unitAbbreviation(item.baseUnitId)}
                       </td>
                       <td className="px-4 py-4 text-right">
                         {item.trackInventory ? (
@@ -394,10 +438,33 @@ export function InventoryItemsPanel() {
                                 ⚠️ Vendido sin existencias
                               </span>
                             )}
+                            {item.minimumStock > 0 &&
+                              (item.currentStock ?? 0) < item.minimumStock && (
+                                <Badge
+                                  variant="secondary"
+                                  className="bg-amber-500/10 text-[10px] uppercase text-amber-700 dark:text-amber-400"
+                                >
+                                  Bajo mínimo
+                                </Badge>
+                              )}
                           </span>
                         ) : (
                           <span className="text-sm text-muted-foreground">—</span>
                         )}
+                      </td>
+                      <td className="px-4 py-4 text-sm tabular-nums text-muted-foreground">
+                        {minMaxLabel(item)}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span
+                          className="block max-w-[140px] truncate font-mono text-xs text-muted-foreground"
+                          title={item.barcode ?? undefined}
+                        >
+                          {item.barcode ?? '—'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-right text-sm">
+                        {formatCurrency(item.costPrice)}
                       </td>
                       <td className="px-4 py-4">
                         <Badge
@@ -499,6 +566,7 @@ export function InventoryItemsPanel() {
         onOpenChange={setIsDialogOpen}
         entity={editingItem ?? undefined}
         categories={categories}
+        measurementUnits={measurementUnits}
         onSubmit={handleSubmitItem}
       />
     </div>

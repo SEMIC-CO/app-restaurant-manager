@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ChevronLeft, ChevronRight, Plus, Search } from 'lucide-react';
+import { Ban, ChevronLeft, ChevronRight, Pencil, Plus, Search } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -15,6 +15,7 @@ import {
 import {
   INVENTORY_MOVEMENT_BADGE_CLASS,
   INVENTORY_MOVEMENT_LABELS,
+  INVENTORY_MOVEMENT_OPTIONS,
   InventoryMovementFormDialog,
   InventoryMovementVoidDialog,
   addsStock,
@@ -22,13 +23,18 @@ import {
   type InventoryMovementFormSubmit,
 } from '@/components/common';
 import { toast } from '@/hooks';
-import { inventoryItemService, inventoryMovementService } from '@/services';
+import {
+  inventoryItemService,
+  inventoryMeasurementUnitService,
+  inventoryMovementService,
+} from '@/services';
 import { formatCurrency } from '@/utils';
 import { cn } from '@/lib/utils';
 import { apiErrorMessage } from './api-error-message';
 import type {
   ApiInventoryItem,
   ApiInventoryMovement,
+  ApiMeasurementUnit,
   InventoryMovementType,
 } from '@/types';
 
@@ -61,6 +67,10 @@ function formatMovementDate(value: string | null): string {
 export function InventoryMovementsPanel() {
   const [movements, setMovements] = React.useState<ApiInventoryMovement[]>([]);
   const [items, setItems] = React.useState<ApiInventoryItem[]>([]);
+  /** Catálogo de unidades: resuelve `unitId` → abreviatura en la tabla. */
+  const [measurementUnits, setMeasurementUnits] = React.useState<
+    ApiMeasurementUnit[]
+  >([]);
   const [total, setTotal] = React.useState(0);
   const [totalPages, setTotalPages] = React.useState(1);
   const [page, setPage] = React.useState(1);
@@ -101,6 +111,17 @@ export function InventoryMovementsPanel() {
   React.useEffect(() => {
     void loadItems();
   }, [loadItems]);
+
+  // Catálogo de unidades de medida (una vez): abreviatura de `unitId`
+  React.useEffect(() => {
+    void (async () => {
+      try {
+        setMeasurementUnits(await inventoryMeasurementUnitService.getAll());
+      } catch {
+        /* la tabla sigue funcionando; la unidad cae a la base del artículo */
+      }
+    })();
+  }, []);
 
   const load = React.useCallback(
     async (
@@ -178,12 +199,36 @@ export function InventoryMovementsPanel() {
   const itemLabel = (itemId: number): string =>
     items.find((item) => item.id === itemId)?.name ?? `#${itemId}`;
 
+  /** Abreviatura de una unidad del catálogo (`#id` si aún no cargó). */
+  const catalogAbbrev = (unitId: number): string =>
+    measurementUnits.find((unit) => unit.id === unitId)?.abbreviation ??
+    `#${unitId}`;
+
+  /**
+   * Abreviatura de la unidad base del artículo: es en qué unidad se expresa
+   * el stock y en qué va la cantidad cuando el movimiento no trae `unitId`.
+   */
+  const baseAbbrev = (item: ApiInventoryItem | undefined): string => {
+    if (!item) return '';
+    if (item.baseUnitId != null) {
+      const catalog = measurementUnits.find(
+        (unit) => unit.id === item.baseUnitId,
+      );
+      if (catalog) return catalog.abbreviation;
+    }
+    return item.unitOfMeasure;
+  };
+
   /** Registro normal (sin corrección). */
   const handleCreateMovement = async (data: InventoryMovementFormSubmit) => {
     const resp = await inventoryMovementService.create({
       inventoryItemId: data.inventoryItemId,
       movementType: data.movementType,
       quantity: data.quantity,
+      // Unidad (tipo de medida) de la cantidad; `conversionFactor` son las
+      // unidades por elemento y `quantity × conversionFactor` mueve el stock
+      unitId: data.unitId,
+      conversionFactor: data.conversionFactor,
       // La entrada informa el TOTAL del lote; la salida, el precio de venta
       totalCost: data.totalCost,
       unitPrice: data.unitPrice,
@@ -197,7 +242,7 @@ export function InventoryMovementsPanel() {
         title: '✅ Movimiento registrado',
         description: `Se registró "${
           INVENTORY_MOVEMENT_LABELS[resp.data.movementType]
-        }" de ${resp.data.quantity} para "${itemLabel(resp.data.inventoryItemId)}".`,
+        }" de ${resp.data.baseQuantity ?? resp.data.quantity} para "${itemLabel(resp.data.inventoryItemId)}".`,
       });
       // El movimiento es el más reciente: va a la página 1 con los filtros actuales
       setPage(1);
@@ -230,6 +275,9 @@ export function InventoryMovementsPanel() {
       inventoryItemId: movement.inventoryItemId,
       movementType: movement.movementType,
       quantity: movement.quantity,
+      unitId: movement.unitId,
+      conversionFactor: movement.conversionFactor,
+      baseQuantity: movement.baseQuantity,
       reference: movement.reference,
       unitCost: movement.unitCost,
       unitPrice: movement.unitPrice,
@@ -306,6 +354,8 @@ export function InventoryMovementsPanel() {
         inventoryItemId: data.inventoryItemId,
         movementType: data.movementType,
         quantity: data.quantity,
+        unitId: data.unitId,
+        conversionFactor: data.conversionFactor,
         totalCost: data.totalCost,
         unitPrice: data.unitPrice,
         reference: data.reference || undefined,
@@ -431,10 +481,11 @@ export function InventoryMovementsPanel() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos los tipos</SelectItem>
-              <SelectItem value="ENTRY">Entrada</SelectItem>
-              <SelectItem value="EXIT">Salida</SelectItem>
-              <SelectItem value="ADJUSTMENT_IN">Ajuste positivo</SelectItem>
-              <SelectItem value="ADJUSTMENT_OUT">Ajuste negativo</SelectItem>
+              {INVENTORY_MOVEMENT_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -489,11 +540,20 @@ export function InventoryMovementsPanel() {
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Tipo
                   </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Unidad
+                  </th>
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Cantidad
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Valor unit.
+                    Cant. base
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Costo total
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Stock (antes → después)
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Referencia
@@ -509,13 +569,13 @@ export function InventoryMovementsPanel() {
               <tbody className="divide-y">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-sm text-muted-foreground">
+                    <td colSpan={11} className="px-6 py-12 text-center text-sm text-muted-foreground">
                       Cargando movimientos...
                     </td>
                   </tr>
                 ) : movements.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center">
+                    <td colSpan={11} className="px-6 py-12 text-center">
                       <span className="text-4xl">📒</span>
                       <p className="mt-3 font-medium">
                         {hasFilters
@@ -535,6 +595,15 @@ export function InventoryMovementsPanel() {
                     // Boolean (no `!== null`): tolera un backend sin las
                     // columnas de anulación todavía desplegado.
                     const isVoided = Boolean(movement.voidedAt);
+                    const movementItem = items.find(
+                      (item) => item.id === movement.inventoryItemId,
+                    );
+                    // Sin `unitId` la cantidad se etiqueta con la unidad
+                    // base del artículo
+                    const quantityUnitLabel =
+                      movement.unitId != null
+                        ? catalogAbbrev(movement.unitId)
+                        : baseAbbrev(movementItem);
                     return (
                       <tr
                         key={movement.id}
@@ -572,6 +641,11 @@ export function InventoryMovementsPanel() {
                             )}
                           </div>
                         </td>
+                        <td className="px-4 py-4 text-sm whitespace-nowrap">
+                          {movement.unitId != null
+                            ? catalogAbbrev(movement.unitId)
+                            : '—'}
+                        </td>
                         <td
                           className={cn(
                             'px-4 py-4 text-right text-sm font-semibold tabular-nums whitespace-nowrap',
@@ -582,23 +656,33 @@ export function InventoryMovementsPanel() {
                           )}
                         >
                           {positive ? '+' : '−'}
-                          {movement.quantity}
+                          {movement.quantity} {quantityUnitLabel}
+                          {movement.conversionFactor != null &&
+                            movement.conversionFactor !== 1 && (
+                              <span className="font-normal text-muted-foreground">
+                                {' '}
+                                (×{movement.conversionFactor})
+                              </span>
+                            )}
                         </td>
                         <td
-                          className="px-4 py-4 text-right text-sm"
-                          title={
-                            movement.unitCost !== null
-                              ? 'Costo de la entrada'
-                              : movement.unitPrice !== null
-                                ? 'Precio de venta (salida)'
-                                : undefined
-                          }
+                          className={cn(
+                            'px-4 py-4 text-right text-sm tabular-nums whitespace-nowrap',
+                            isVoided && 'text-muted-foreground line-through',
+                          )}
                         >
-                          {movement.unitCost !== null
-                            ? formatCurrency(movement.unitCost)
-                            : movement.unitPrice !== null
-                              ? formatCurrency(movement.unitPrice)
-                              : '—'}
+                          {movement.baseQuantity ?? '—'}
+                        </td>
+                        <td className="px-4 py-4 text-right text-sm tabular-nums whitespace-nowrap">
+                          {movement.totalCost !== null
+                            ? formatCurrency(movement.totalCost)
+                            : '—'}
+                        </td>
+                        <td className="px-4 py-4 text-right text-sm tabular-nums whitespace-nowrap">
+                          {movement.quantityBefore !== null &&
+                          movement.quantityAfter !== null
+                            ? `${movement.quantityBefore} → ${movement.quantityAfter}`
+                            : '—'}
                         </td>
                         <td className="px-4 py-4 text-sm">
                           <span className="block">{movement.reference || '—'}</span>
@@ -631,18 +715,21 @@ export function InventoryMovementsPanel() {
                             <div className="flex justify-end gap-1">
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
+                                className="h-8 w-8"
+                                title="Corregir: anula este movimiento y registra el correcto"
                                 onClick={() => openCorrection(movement)}
                               >
-                                Corregir
+                                <Pencil className="h-4 w-4" />
                               </Button>
                               <Button
                                 variant="ghost"
-                                size="sm"
-                                className="text-red-600 hover:text-red-700 dark:text-red-400"
+                                size="icon"
+                                className="h-8 w-8 text-red-600 hover:text-red-700 dark:text-red-400"
+                                title="Anular: deja de contar para el stock"
                                 onClick={() => setVoidTarget(movement)}
                               >
-                                Anular
+                                <Ban className="h-4 w-4" />
                               </Button>
                             </div>
                           )}

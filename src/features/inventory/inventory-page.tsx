@@ -5,20 +5,22 @@ import {
   InventoryCategoriesPanel,
   InventoryItemsPanel,
   InventoryMovementsPanel,
+  MeasurementUnitsPanel,
 } from '@/components/inventory';
 
 const TABS = [
   { id: 'items', label: 'Artículos' },
   { id: 'categories', label: 'Categorías' },
   { id: 'movements', label: 'Movimientos' },
+  { id: 'units', label: 'Unidades de medida' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
 
 /**
  * Módulo de Inventario (grupo PRINCIPAL del sidebar): una sola ruta
- * `/inventario` con tres pestañas — Artículos (con stock por sede),
- * Categorías y Movimientos (kardex).
+ * `/inventario` con cuatro pestañas — Artículos (con stock por sede),
+ * Categorías, Movimientos (kardex) y el catálogo global de unidades.
  */
 export function InventoryPage() {
   const [activeTab, setActiveTab] = React.useState<TabId>('items');
@@ -32,8 +34,8 @@ export function InventoryPage() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Inventario</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Administra los artículos, sus categorías y los movimientos de
-              stock de tu sede
+              Administra los artículos, sus categorías, unidades de medida y
+              los movimientos de stock de tu sede
             </p>
           </div>
 
@@ -49,6 +51,7 @@ export function InventoryPage() {
           {activeTab === 'items' && <InventoryItemsPanel />}
           {activeTab === 'categories' && <InventoryCategoriesPanel />}
           {activeTab === 'movements' && <InventoryMovementsPanel />}
+          {activeTab === 'units' && <MeasurementUnitsPanel />}
         </div>
       }
     />

@@ -458,9 +458,17 @@ export interface ListProductsParams {
 /**
  * Tipos de movimiento de stock. Los valores viajan en **inglés** (check
  * constraint de la BD) y la UI los traduce con `INVENTORY_MOVEMENT_LABELS`.
- * `ENTRY`/`ADJUSTMENT_IN` suman stock; `EXIT`/`ADJUSTMENT_OUT` lo restan.
+ * `INITIAL_STOCK`/`ENTRY`/`ADJUSTMENT_IN` suman stock; el resto lo restan
+ * (helper `addsStock`).
  */
-export type InventoryMovementType = 'ENTRY' | 'EXIT' | 'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT';
+export type InventoryMovementType =
+  | 'INITIAL_STOCK'
+  | 'ENTRY'
+  | 'EXIT'
+  | 'ADJUSTMENT_IN'
+  | 'ADJUSTMENT_OUT'
+  | 'RETURN_EXIT'
+  | 'WASTE';
 
 /**
  * Alcance de una categoría de inventario (`inventory_categories.type`):
@@ -498,6 +506,92 @@ export interface ListInventoryCategoriesParams {
 }
 
 /**
+ * Tipo de unidad de medida (`measurement_units.type`). Agrupa las unidades
+ * del catálogo por naturaleza (cantidad, peso, volumen…).
+ */
+export type MeasurementUnitType =
+  | 'QUANTITY'
+  | 'WEIGHT'
+  | 'VOLUME'
+  | 'LENGTH'
+  | 'AREA'
+  | 'PACKAGING';
+
+/**
+ * Alcance de una unidad de medida (`measurement_units.mode`): `SYSTEM` =
+ * configuración del sistema (solo lectura) · `COMPANY` = creada por una sede.
+ */
+export type MeasurementUnitMode = 'SYSTEM' | 'COMPANY';
+
+/** Unidad de medida del catálogo (SYSTEM solo lectura; COMPANY editable). */
+export interface ApiMeasurementUnit {
+  id: number;
+  name: string;
+  abbreviation: string;
+  type: MeasurementUnitType;
+  isActive: boolean;
+  mode: MeasurementUnitMode;
+  /** Sede que la creó (`mode = 'COMPANY'`); `null` en las del sistema. */
+  headquarterId: number | null;
+}
+
+export interface ListMeasurementUnitsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  isActive?: boolean;
+}
+
+export interface CreateMeasurementUnitPayload {
+  name: string;
+  abbreviation: string;
+  type: MeasurementUnitType;
+  isActive?: boolean;
+}
+
+export interface UpdateMeasurementUnitPayload {
+  name?: string;
+  abbreviation?: string;
+  type?: MeasurementUnitType;
+  isActive?: boolean;
+}
+
+/**
+ * Unidad alternativa de un artículo (`inventory_item_units`): fila de
+ * conversión a la unidad base del artículo. El catálogo de unidades es global
+ * (`measurementUnitId` → `measurement_units`).
+ */
+export interface ApiInventoryItemUnit {
+  id: number;
+  inventoryItemId: number;
+  measurementUnitId: number;
+  /** Cuántas unidades base contiene una de esta unidad (> 0). */
+  conversionFactor: number;
+  barcode: string | null;
+  isBaseUnit: boolean;
+  isPurchaseUnit: boolean;
+  isDefault: boolean;
+  isActive: boolean;
+}
+
+export interface CreateInventoryItemUnitPayload {
+  measurementUnitId: number;
+  /** Cuántas unidades base contiene una de esta unidad (debe ser 1 si es la base). */
+  conversionFactor: number;
+  barcode?: string;
+  isPurchaseUnit?: boolean;
+  isDefault?: boolean;
+}
+
+export interface UpdateInventoryItemUnitPayload {
+  conversionFactor?: number;
+  /** `''` borra el código de barras de la fila. */
+  barcode?: string;
+  isPurchaseUnit?: boolean;
+  isDefault?: boolean;
+}
+
+/**
  * Artículo de inventario. El catálogo es por sede (la empresa va implícita en
  * la sede del JWT); `code` es único dentro de la sede y se puede repetir en
  * otras. `currentStock` es el stock de la sede del JWT, calculado desde
@@ -509,7 +603,19 @@ export interface ApiInventoryItem {
   code: string | null;
   name: string;
   description: string | null;
+  /**
+   * @deprecated Deprecado en favor de `baseUnitId`; se conserva por
+   * compatibilidad con datos existentes. La UI ya no lo edita.
+   */
   unitOfMeasure: string;
+  /** Unidad base del catálogo (`measurement_units`); `null` si no está asignada. */
+  baseUnitId: number | null;
+  barcode: string | null;
+  minimumStock: number;
+  /** `null` = sin tope de stock. */
+  maximumStock: number | null;
+  /** Si el artículo se puede configurar en el menú del cliente. */
+  allowMenuConfig: boolean;
   /**
    * Costo unitario VIGENTE: promedio ponderado de las entradas. Lo calcula el
    * backend (no se digita). El precio de venta vive en `products.price`.
@@ -522,10 +628,16 @@ export interface ApiInventoryItem {
 
 export interface CreateInventoryItemPayload {
   name: string;
+  /** Vacío/omitido → el backend lo genera (BEB-COC-001). */
   code?: string;
   description?: string;
   inventoryCategoryId?: number;
   unitOfMeasure?: string;
+  baseUnitId?: number;
+  barcode?: string;
+  minimumStock?: number;
+  maximumStock?: number | null;
+  allowMenuConfig?: boolean;
   trackInventory?: boolean;
   isActive?: boolean;
 }
@@ -536,6 +648,12 @@ export interface UpdateInventoryItemPayload {
   description?: string;
   inventoryCategoryId?: number;
   unitOfMeasure?: string;
+  baseUnitId?: number;
+  barcode?: string;
+  minimumStock?: number;
+  /** `null` explícito lo borra. */
+  maximumStock?: number | null;
+  allowMenuConfig?: boolean;
   trackInventory?: boolean;
   isActive?: boolean;
 }
@@ -554,7 +672,19 @@ export interface ApiInventoryMovement {
   headquarterId: number;
   inventoryItemId: number;
   movementType: InventoryMovementType;
+  /** Cantidad registrada en `unitId` (`null` = unidad base del artículo). */
   quantity: number;
+  /** Unidad registrada (`measurement_units.id`); `null` = unidad base. */
+  unitId: number | null;
+  /** Factor usado al registrar (cantidad → unidad base); `null` si no aplica. */
+  conversionFactor: number | null;
+  /** Cantidad convertida a unidad base (`quantity × conversionFactor`). */
+  baseQuantity: number | null;
+  /** Stock en unidad base antes/después de registrar el movimiento. */
+  quantityBefore: number | null;
+  quantityAfter: number | null;
+  /** Costo total de la línea (`quantity × unit_cost` en la unidad registrada). */
+  totalCost: number | null;
   /** Costo unitario: solo en las ENTRADAS (alimenta el costo vigente). */
   unitCost: number | null;
   /** Precio de venta: solo en las SALIDAS (sale price del producto). */
@@ -582,6 +712,17 @@ export interface CreateInventoryMovementPayload {
   movementType: InventoryMovementType;
   /** Siempre positiva: el sentido lo da `movementType`. */
   quantity: number;
+  /**
+   * Unidades por cada elemento de `quantity` (1 paquete × 20 = 20). El
+   * producto `quantity × conversionFactor` es el total de unidades base que
+   * mueve el stock. Si se omite, `quantity` ya está en unidades base.
+   */
+  conversionFactor?: number;
+  /**
+   * Unidad de `quantity` (`measurement_units.id`). Omitida → la cantidad ya
+   * está en la unidad base del artículo.
+   */
+  unitId?: number;
   unitCost?: number;
   /** Costo TOTAL del lote (p.ej. canasta de30): deriva `unitCost`. */
   totalCost?: number;
